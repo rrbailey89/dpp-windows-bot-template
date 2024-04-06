@@ -114,6 +114,28 @@ namespace commands {
                  }
                  });
          }
+         
+         else if (sub_command == "guessinggame") {
+             int player_guess = std::get<int64_t>(event.get_parameter("guess"));
+
+             // Generate a random number between 1 and 100
+             std::random_device rd;
+             std::mt19937 rng(rd());
+             std::uniform_int_distribution<int> dist(1, 100);
+             int secret_number = dist(rng);
+
+             // Check the player's guess
+             if (player_guess == secret_number) {
+                 event.reply("Congratulations! You guessed the correct number: " + std::to_string(secret_number));
+             }
+             else if (player_guess < secret_number) {
+                 event.reply("Too low! Try again." );
+             }
+             else {
+                 event.reply("Too high! Try again.");
+             }
+         }
+         
          else if (sub_command == "rps") {
              std::string player_choice_str = std::get<std::string>(event.get_parameter("choice"));
 

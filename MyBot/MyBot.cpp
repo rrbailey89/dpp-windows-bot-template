@@ -115,8 +115,6 @@ int main()
 		}
 
 		// Setup other features
-		//commands::setup_message_delete_tracking(bot, message_cache);
-		//commands::register_chat_monitor(bot);
 		commands::register_fflogs_transformation(bot);
 		commands::setup_memberjoin_handler(bot);
 		setup_button_click_handler(bot);
