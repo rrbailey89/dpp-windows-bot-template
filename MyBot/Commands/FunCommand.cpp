@@ -1,6 +1,7 @@
 #include "FunCommand.h"
 #include <random>
 #include <unordered_map>
+#include <db_access.h>
 
 namespace commands {
     
@@ -81,6 +82,7 @@ namespace commands {
 
              use_cataas = !use_cataas;  // Toggle the flag for the next command invocation
          }
+         
          else if (sub_command == "hug") {
              // Get the mentioned user
              dpp::snowflake user_id = std::get<dpp::snowflake>(event.get_parameter("user"));
@@ -89,8 +91,14 @@ namespace commands {
              // Get the user who invoked the command
              dpp::user invoker = event.command.usr;
 
-             // Create the message text with user mentions
-             std::string message_text = mentioned_user.get_mention() + " hugged by " + invoker.get_mention();
+             // Get the current hug count for the mentioned user
+             int hug_count = get_user_hug_count(user_id);
+
+             // Increment the hug count
+             increment_user_hug_count(user_id);
+
+             // Create the message text with user mentions and hug count
+             std::string message_text = mentioned_user.get_mention() + "was hugged by " + invoker.get_mention() + " they have been hugged " + std::to_string(hug_count + 1) + " times.";
 
              // Use the nekos.best API for hugs
              bot.request("https://nekos.best/api/v2/hug", dpp::m_get, [event, &bot, message_text](const dpp::http_request_completion_t& response) {
