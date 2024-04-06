@@ -3,7 +3,6 @@
 #include "FactsCommand.h"
 #include "GrantRoles.h"
 #include "UpdateRaidTime.h"
-#include "ChatMonitor.h"
 #include "rules_command.h"
 #include "button_click_handler.h"
 #include "SetAvatar.h"
@@ -11,7 +10,6 @@
 #include "MemberJoinHandler.h"
 #include "UserInformation.h"
 #include "ReactionLogger.h"
-#include "MessageDeleteTracker.h"
 #include "WarnMember.h"
 #include "BrosnanStatus.h"
 #include "FFLogsToXIVAnalysis.h"
@@ -28,6 +26,8 @@
 #include "command_refresh.h"
 #include "CreateRolesButton.h"
 #include "FunCommand.h"
+#include "ModCommand.h"
+#include "message_listener.h"
 
 /* Be sure to place your token in the line below.
  * Follow steps here to get a token:
@@ -90,6 +90,8 @@ int main()
 	dpp::cache<dpp::message> message_cache;
 	dpp::cache<dpp::role> role_cache;
 
+	message_listener listener(bot, message_cache);
+	listener.setup();
 	/* Output simple log messages to stdout */
 	bot.on_log(dpp::utility::cout_logger());
 
@@ -113,8 +115,6 @@ int main()
 		}
 
 		// Setup other features
-		commands::setup_message_delete_tracking(bot, message_cache);
-		commands::register_chat_monitor(bot);
 		commands::register_fflogs_transformation(bot);
 		commands::setup_memberjoin_handler(bot);
 		setup_button_click_handler(bot);
@@ -193,6 +193,9 @@ int main()
 		else if (event.command.get_command_name() == "fun") {
 			commands::handle_fun_command(event, bot);
 		}
+		else if (event.command.get_command_name() == "mod") {
+			commands::handle_mod_command(event, bot);
+		}
 		co_return;
 		});
 
@@ -208,6 +211,7 @@ int main()
 			std::cerr << "Exception in user context menu handler: " << e.what() << std::endl;
 		}
 		});
+	
 	bot.on_message_reaction_add([&bot](const dpp::message_reaction_add_t& event) {
 		send_reaction_embed(bot, event);
 		});

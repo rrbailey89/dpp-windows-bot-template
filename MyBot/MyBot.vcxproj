@@ -192,7 +192,6 @@
     <ClCompile Include="Commands\BlameSerena.cpp" />
     <ClCompile Include="Commands\BrosnanStatus.cpp" />
     <ClCompile Include="Commands\button_click_handler.cpp" />
-    <ClCompile Include="Commands\ChatMonitor.cpp" />
     <ClCompile Include="Commands\CleanCommand.cpp" />
     <ClCompile Include="Commands\command_refresh.cpp" />
     <ClCompile Include="Commands\CreateRolesButton.cpp" />
@@ -202,7 +201,8 @@
     <ClCompile Include="Commands\FunCommand.cpp" />
     <ClCompile Include="Commands\GrantRoles.cpp" />
     <ClCompile Include="Commands\MemberJoinHandler.cpp" />
-    <ClCompile Include="Commands\MessageDeleteTracker.cpp" />
+    <ClCompile Include="Commands\message_listener.cpp" />
+    <ClCompile Include="Commands\ModCommand.cpp" />
     <ClCompile Include="Commands\PollCommand.cpp" />
     <ClCompile Include="Commands\ReactionLogger.cpp" />
     <ClCompile Include="Commands\rules_command.cpp" />
@@ -304,7 +304,6 @@
     <ClInclude Include="Headers\BlameSerena.h" />
     <ClInclude Include="Headers\BrosnanStatus.h" />
     <ClInclude Include="Headers\button_click_handler.h" />
-    <ClInclude Include="Headers\ChatMonitor.h" />
     <ClInclude Include="Headers\CleanCommand.h" />
     <ClInclude Include="Headers\command_refresh.h" />
     <ClInclude Include="Headers\CreateRolesButton.h" />
@@ -315,7 +314,8 @@
     <ClInclude Include="Headers\grantroles.h" />
     <ClInclude Include="Headers\GuildCommands.h" />
     <ClInclude Include="Headers\MemberJoinHandler.h" />
-    <ClInclude Include="Headers\MessageDeleteTracker.h" />
+    <ClInclude Include="Headers\message_listener.h" />
+    <ClInclude Include="Headers\ModCommand.h" />
     <ClInclude Include="Headers\pierce_brosnan_facts.h" />
     <ClInclude Include="Headers\PollCommand.h" />
     <ClInclude Include="Headers\ReactionLogger.h" />
