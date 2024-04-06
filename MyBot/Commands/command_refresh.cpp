@@ -5,13 +5,15 @@
 #include "grantroles.h"
 #include "UpdateRaidTime.h"
 #include "rules_command.h"
-#include "MessageDeleteTracker.h"
+//#include "MessageDeleteTracker.h"
 #include "BrosnanStatus.h"
 //#include "PollCommand.h"
 #include "WarnMember.h"
 #include "MemberJoinHandler.h"
 #include "CreateRolesButton.h"
 #include "FunCommand.h"
+#include "ModCommand.h"
+#include "message_listener.h"
 
 void refresh_guild_commands(dpp::cluster& bot, dpp::snowflake guild_id) {
 	// Define a list of all possible guild-specific commands
@@ -21,14 +23,15 @@ void refresh_guild_commands(dpp::cluster& bot, dpp::snowflake guild_id) {
 		commands::register_grantroles_command(bot),
 		commands::register_updateraidtime_command(bot),
 		commands::register_rules_command(bot),
-		commands::register_setdeletechannel_command(bot),
-		commands::register_brosnanstatus_command(bot),
+        message_listener::register_setdeletechannel_command(bot),
+        commands::register_brosnanstatus_command(bot),
 		//commands::register_poll_command(bot),
 		commands::register_setwarnchannel_command(bot),
 		commands::register_warn_member_command(bot),
         commands::register_setmemberjoinchannel_command(bot),
         commands::register_createrolesbutton_command(bot),
-        commands::register_fun_command(bot)
+        commands::register_fun_command(bot),
+        commands::register_mod_command(bot)
 		// Add other guild-specific commands as needed
 	};
 
