@@ -1491,3 +1491,96 @@ dpp::snowflake get_rules_channel_id(dpp::snowflake guild_id) {
     mysql_stmt_close(stmt);
     return channel_id;
 }
+
+int get_user_hug_count(dpp::snowflake user_id) {
+    if (!open_db()) {
+        std::cerr << "Failed to open database connection." << std::endl;
+        return 0;
+    }
+    const char* sql = "SELECT hug_count FROM user_hug_counts WHERE user_id = ?;";
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        std::cerr << "Failed to initialize statement handle: " << mysql_error(conn) << std::endl;
+        return 0;
+    }
+
+    if (mysql_stmt_prepare(stmt, sql, strlen(sql))) {
+        std::cerr << "Failed to prepare statement: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return 0;
+    }
+
+    MYSQL_BIND bind[1];
+    memset(bind, 0, sizeof(bind));
+
+    bind[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    bind[0].buffer = (char*)&user_id;
+
+    if (mysql_stmt_bind_param(stmt, bind)) {
+        std::cerr << "Failed to bind parameter: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return 0;
+    }
+
+    if (mysql_stmt_execute(stmt)) {
+        std::cerr << "Failed to execute statement: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return 0;
+    }
+
+    int hug_count = 0;
+    MYSQL_BIND result[1];
+    memset(result, 0, sizeof(result));
+    result[0].buffer_type = MYSQL_TYPE_LONG;
+    result[0].buffer = &hug_count;
+
+    if (mysql_stmt_bind_result(stmt, result)) {
+        std::cerr << "Failed to bind result: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return 0;
+    }
+
+    if (mysql_stmt_fetch(stmt) == MYSQL_NO_DATA) {
+        // If no row is found, the user hasn't been hugged yet, so the count is 0
+        hug_count = 0;
+    }
+
+    mysql_stmt_close(stmt);
+    return hug_count;
+}
+
+void increment_user_hug_count(dpp::snowflake user_id) {
+    if (!open_db()) {
+        std::cerr << "Failed to open database connection." << std::endl;
+        return;
+    }
+    const char* sql = "INSERT INTO user_hug_counts (user_id, hug_count) VALUES (?, 1) ON DUPLICATE KEY UPDATE hug_count = hug_count + 1;";
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        std::cerr << "Failed to initialize statement handle: " << mysql_error(conn) << std::endl;
+        return;
+    }
+
+    if (mysql_stmt_prepare(stmt, sql, strlen(sql))) {
+        std::cerr << "Failed to prepare statement: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return;
+    }
+
+    MYSQL_BIND bind[1];
+    memset(bind, 0, sizeof(bind));
+    bind[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    bind[0].buffer = (char*)&user_id;
+
+    if (mysql_stmt_bind_param(stmt, bind)) {
+        std::cerr << "Failed to bind parameter: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return;
+    }
+
+    if (mysql_stmt_execute(stmt)) {
+        std::cerr << "Failed to execute statement: " << mysql_stmt_error(stmt) << std::endl;
+    }
+
+    mysql_stmt_close(stmt);
+}

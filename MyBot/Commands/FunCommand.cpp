@@ -1,9 +1,11 @@
 #include "FunCommand.h"
 #include <random>
 #include <unordered_map>
+#include <db_access.h>
 
 namespace commands {
-    
+    std::unordered_map<dpp::snowflake, int> game_instances;  // Map to store game instances
+
      dpp::slashcommand register_fun_command(dpp::cluster& bot) {
         dpp::slashcommand fun_command("fun", "Fun commands", bot.me.id);
         fun_command.add_option(
@@ -15,7 +17,7 @@ namespace commands {
 
         );
         fun_command.add_option(
-			dpp::command_option(dpp::co_sub_command, "guessinggame", "Play a guessing game")
+			dpp::command_option(dpp::co_sub_command, "guessinggame", "Play a guessing game (Different numbers for each player)")
 			.add_option(dpp::command_option(dpp::co_integer, "guess", "Your guess (between 1 and 100)", true))
 		);
         fun_command.add_option(
@@ -81,6 +83,7 @@ namespace commands {
 
              use_cataas = !use_cataas;  // Toggle the flag for the next command invocation
          }
+         
          else if (sub_command == "hug") {
              // Get the mentioned user
              dpp::snowflake user_id = std::get<dpp::snowflake>(event.get_parameter("user"));
@@ -89,8 +92,14 @@ namespace commands {
              // Get the user who invoked the command
              dpp::user invoker = event.command.usr;
 
-             // Create the message text with user mentions
-             std::string message_text = mentioned_user.get_mention() + " hugged by " + invoker.get_mention();
+             // Get the current hug count for the mentioned user
+             int hug_count = get_user_hug_count(user_id);
+
+             // Increment the hug count
+             increment_user_hug_count(user_id);
+
+             // Create the message text with user mentions and hug count
+             std::string message_text = mentioned_user.get_mention() + "was hugged by " + invoker.get_mention() + " they have been hugged " + std::to_string(hug_count + 1) + " times.";
 
              // Use the nekos.best API for hugs
              bot.request("https://nekos.best/api/v2/hug", dpp::m_get, [event, &bot, message_text](const dpp::http_request_completion_t& response) {
@@ -117,19 +126,29 @@ namespace commands {
          
          else if (sub_command == "guessinggame") {
              int player_guess = std::get<int64_t>(event.get_parameter("guess"));
+             dpp::snowflake user_id = event.command.usr.id;  // Get the user ID
 
-             // Generate a random number between 1 and 100
-             std::random_device rd;
-             std::mt19937 rng(rd());
-             std::uniform_int_distribution<int> dist(1, 100);
-             int secret_number = dist(rng);
+             // Check if the user has an ongoing game instance
+             if (game_instances.find(user_id) == game_instances.end()) {
+                 // Generate a new random number for the user
+                 std::random_device rd;
+                 std::mt19937 rng(rd());
+                 std::uniform_int_distribution<int> dist(1, 100);
+                 game_instances[user_id] = dist(rng);
+
+                 std::cout << "New game started for user " << user_id << ". Secret number: " << game_instances[user_id] << std::endl;
+
+             }
+
+             int secret_number = game_instances[user_id];  // Get the secret number for the user
 
              // Check the player's guess
              if (player_guess == secret_number) {
                  event.reply("Congratulations! You guessed the correct number: " + std::to_string(secret_number));
+                 game_instances.erase(user_id);  // Remove the game instance for the user
              }
              else if (player_guess < secret_number) {
-                 event.reply("Too low! Try again." );
+                 event.reply("Too low! Try again.");
              }
              else {
                  event.reply("Too high! Try again.");

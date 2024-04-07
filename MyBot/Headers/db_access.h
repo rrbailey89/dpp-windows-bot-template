@@ -40,3 +40,5 @@ void set_member_join_channel_for_guild(dpp::snowflake guild_id, dpp::snowflake c
 dpp::snowflake get_member_join_channel_for_guild(dpp::snowflake guild_id);
 std::string get_openai_api_key();
 dpp::snowflake get_rules_channel_id(dpp::snowflake guild_id);
+int get_user_hug_count(dpp::snowflake user_id);
+void increment_user_hug_count(dpp::snowflake user_id);
