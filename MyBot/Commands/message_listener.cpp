@@ -8,6 +8,7 @@
 #include <random>
 #include <chrono>
 #include <dpp/dpp.h>
+#include "FunCommand.h"
 
 unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 std::default_random_engine generator(seed);
@@ -95,6 +96,8 @@ void message_listener::on_message_create(const dpp::message_create_t& event) {
     if (event.msg.author.id == bot.me.id || event.msg.author.is_bot()) {
         return;
     }
+    
+    commands::handle_message(event, bot);
 
     std::vector<std::string> keywords = { "pierce brosnan", "yoshi p", "yoship", "yoshi-p", "japan", "raid", "shion", "saskia", "erik", "amia", "opal", "lief", "dyna", "bot", "cat", "broken", "lol", "lmao", "a8s" };
     std::string message_content = event.msg.content;
