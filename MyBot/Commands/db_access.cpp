@@ -3,7 +3,7 @@
 #include <vector>
 #include <chrono>
 #include <string>
-
+#include <random>
 
 MYSQL* conn = nullptr; // MySQL connection handle
 const std::chrono::seconds cooldown_duration(120);
@@ -1580,6 +1580,215 @@ void increment_user_hug_count(dpp::snowflake user_id) {
 
     if (mysql_stmt_execute(stmt)) {
         std::cerr << "Failed to execute statement: " << mysql_stmt_error(stmt) << std::endl;
+    }
+
+    mysql_stmt_close(stmt);
+}
+
+void store_reminder(dpp::snowflake guild_id, const std::string& reminder_text, const std::string& frequency, const std::string& day, const std::string& time, dpp::snowflake channel_id) {
+    if (!open_db()) {
+        std::cerr << "Failed to open database connection." << std::endl;
+        return;
+    }
+    const char* sql = "INSERT INTO reminders (guild_id, reminder_text, frequency, day, time, channel_id) VALUES (?, ?, ?, ?, ?, ?);";
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        std::cerr << "Failed to initialize statement handle: " << mysql_error(conn) << std::endl;
+        return;
+    }
+
+    if (mysql_stmt_prepare(stmt, sql, strlen(sql))) {
+        std::cerr << "Failed to prepare statement: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return;
+    }
+
+    MYSQL_BIND bind[6];
+    memset(bind, 0, sizeof(bind));
+
+    bind[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    bind[0].buffer = (char*)&guild_id;
+
+    bind[1].buffer_type = MYSQL_TYPE_STRING;
+    bind[1].buffer = (char*)reminder_text.c_str();
+    bind[1].buffer_length = reminder_text.length();
+
+    bind[2].buffer_type = MYSQL_TYPE_STRING;
+    bind[2].buffer = (char*)frequency.c_str();
+    bind[2].buffer_length = frequency.length();
+
+    bind[3].buffer_type = MYSQL_TYPE_STRING;
+    bind[3].buffer = (char*)day.c_str();
+    bind[3].buffer_length = day.length();
+
+    bind[4].buffer_type = MYSQL_TYPE_STRING;
+    bind[4].buffer = (char*)time.c_str();
+    bind[4].buffer_length = time.length();
+
+    bind[5].buffer_type = MYSQL_TYPE_LONGLONG;
+    bind[5].buffer = (char*)&channel_id;
+
+    if (mysql_stmt_bind_param(stmt, bind)) {
+        std::cerr << "Failed to bind parameters: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return;
+    }
+
+    if (mysql_stmt_execute(stmt)) {
+        std::cerr << "Failed to execute statement: " << mysql_stmt_error(stmt) << std::endl;
+    }
+    else {
+        std::cout << "Reminder stored successfully" << std::endl;
+    }
+
+    mysql_stmt_close(stmt);
+}
+
+std::vector<std::tuple<int, std::string, std::string, std::string, std::string, dpp::snowflake>> get_due_reminders_with_id() {
+    std::vector<std::tuple<int, std::string, std::string, std::string, std::string, dpp::snowflake>> due_reminders;
+
+    if (!open_db()) {
+        std::cerr << "Failed to open database connection." << std::endl;
+        return due_reminders;
+    }
+
+    std::time_t now = std::time(nullptr);
+    std::tm localtime;
+    localtime_s(&localtime, &now);
+
+    std::ostringstream time_stream;
+    time_stream << std::put_time(&localtime, "%I:%M %p");
+    std::string current_time = time_stream.str();
+
+    std::string current_day = localtime.tm_wday == 0 ? "sunday" :
+        localtime.tm_wday == 1 ? "monday" :
+        localtime.tm_wday == 2 ? "tuesday" :
+        localtime.tm_wday == 3 ? "wednesday" :
+        localtime.tm_wday == 4 ? "thursday" :
+        localtime.tm_wday == 5 ? "friday" : "saturday";
+
+    std::string sql = "SELECT id, reminder_text, frequency, day, time, channel_id FROM reminders WHERE (frequency = 'weekly' AND day = ? AND TIME(STR_TO_DATE(time, '%l:%i %p')) <= TIME(NOW()) AND (last_sent IS NULL OR DATE(last_sent) <> CURDATE())) OR (frequency = 'monthly' AND DAY(last_sent) <> DAY(NOW()) AND TIME(STR_TO_DATE(time, '%l:%i %p')) <= TIME(NOW()))";
+
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        std::cerr << "Failed to initialize statement handle: " << mysql_error(conn) << std::endl;
+        return due_reminders;
+    }
+
+    if (mysql_stmt_prepare(stmt, sql.c_str(), sql.length())) {
+        std::cerr << "Failed to prepare statement: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return due_reminders;
+    }
+
+    MYSQL_BIND bind[1];
+    memset(bind, 0, sizeof(bind));
+
+    bind[0].buffer_type = MYSQL_TYPE_STRING;
+    bind[0].buffer = (char*)current_day.c_str();
+    bind[0].buffer_length = current_day.length();
+
+    if (mysql_stmt_bind_param(stmt, bind)) {
+        std::cerr << "Failed to bind parameters: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return due_reminders;
+    }
+
+    if (mysql_stmt_execute(stmt)) {
+        std::cerr << "Failed to execute statement: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return due_reminders;
+    }
+
+    int reminder_id;
+    char reminder_text_buf[1024], frequency_buf[100], day_buf[10], time_buf[10];
+    unsigned long reminder_text_len, frequency_len, day_len, time_len;
+    dpp::snowflake channel_id;
+
+    MYSQL_BIND result_bind[6];
+    memset(result_bind, 0, sizeof(result_bind));
+
+    result_bind[0].buffer_type = MYSQL_TYPE_LONG;
+    result_bind[0].buffer = (char*)&reminder_id;
+
+    result_bind[1].buffer_type = MYSQL_TYPE_STRING;
+    result_bind[1].buffer = reminder_text_buf;
+    result_bind[1].buffer_length = sizeof(reminder_text_buf);
+    result_bind[1].length = &reminder_text_len;
+
+    result_bind[2].buffer_type = MYSQL_TYPE_STRING;
+    result_bind[2].buffer = frequency_buf;
+    result_bind[2].buffer_length = sizeof(frequency_buf);
+    result_bind[2].length = &frequency_len;
+
+    result_bind[3].buffer_type = MYSQL_TYPE_STRING;
+    result_bind[3].buffer = day_buf;
+    result_bind[3].buffer_length = sizeof(day_buf);
+    result_bind[3].length = &day_len;
+
+    result_bind[4].buffer_type = MYSQL_TYPE_STRING;
+    result_bind[4].buffer = time_buf;
+    result_bind[4].buffer_length = sizeof(time_buf);
+    result_bind[4].length = &time_len;
+
+    result_bind[5].buffer_type = MYSQL_TYPE_LONGLONG;
+    result_bind[5].buffer = (char*)&channel_id;
+
+    if (mysql_stmt_bind_result(stmt, result_bind)) {
+        std::cerr << "Failed to bind result: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return due_reminders;
+    }
+
+    while (mysql_stmt_fetch(stmt) == 0) {
+        std::string reminder_text(reminder_text_buf, reminder_text_len);
+        std::string frequency(frequency_buf, frequency_len);
+        std::string day(day_buf, day_len);
+        std::string time(time_buf, time_len);
+
+        due_reminders.emplace_back(reminder_id, reminder_text, frequency, day, time, channel_id);
+    }
+
+    mysql_stmt_close(stmt);
+    return due_reminders;
+}
+
+void update_reminder_last_sent(int reminder_id) {
+    if (!open_db()) {
+        std::cerr << "Failed to open database connection." << std::endl;
+        return;
+    }
+
+    const char* sql = "UPDATE reminders SET last_sent = NOW() WHERE id = ?";
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        std::cerr << "Failed to initialize statement handle: " << mysql_error(conn) << std::endl;
+        return;
+    }
+
+    if (mysql_stmt_prepare(stmt, sql, strlen(sql))) {
+        std::cerr << "Failed to prepare statement: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return;
+    }
+
+    MYSQL_BIND bind[1];
+    memset(bind, 0, sizeof(bind));
+
+    bind[0].buffer_type = MYSQL_TYPE_LONG;
+    bind[0].buffer = &reminder_id;
+
+    if (mysql_stmt_bind_param(stmt, bind)) {
+        std::cerr << "Failed to bind parameter: " << mysql_stmt_error(stmt) << std::endl;
+        mysql_stmt_close(stmt);
+        return;
+    }
+
+    if (mysql_stmt_execute(stmt)) {
+        std::cerr << "Failed to execute statement: " << mysql_stmt_error(stmt) << std::endl;
+    }
+    else {
+        std::cout << "Reminder last_sent updated successfully" << std::endl;
     }
 
     mysql_stmt_close(stmt);

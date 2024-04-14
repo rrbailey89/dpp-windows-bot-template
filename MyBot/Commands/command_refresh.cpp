@@ -14,6 +14,7 @@
 #include "FunCommand.h"
 #include "ModCommand.h"
 #include "message_listener.h"
+#include "ReminderCommand.h"
 
 void refresh_guild_commands(dpp::cluster& bot, dpp::snowflake guild_id) {
 	// Define a list of all possible guild-specific commands
@@ -31,7 +32,8 @@ void refresh_guild_commands(dpp::cluster& bot, dpp::snowflake guild_id) {
         commands::register_setmemberjoinchannel_command(bot),
         commands::register_createrolesbutton_command(bot),
         commands::register_fun_command(bot),
-        commands::register_mod_command(bot)
+        commands::register_mod_command(bot),
+        commands::register_reminder_command(bot)
 		// Add other guild-specific commands as needed
 	};
 

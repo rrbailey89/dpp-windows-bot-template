@@ -42,3 +42,6 @@ std::string get_openai_api_key();
 dpp::snowflake get_rules_channel_id(dpp::snowflake guild_id);
 int get_user_hug_count(dpp::snowflake user_id);
 void increment_user_hug_count(dpp::snowflake user_id);
+void store_reminder(dpp::snowflake guild_id, const std::string& reminder_text, const std::string& frequency, const std::string& day, const std::string& time, dpp::snowflake channel_id);
+std::vector<std::tuple<int, std::string, std::string, std::string, std::string, dpp::snowflake>> get_due_reminders_with_id();
+void update_reminder_last_sent(int reminder_id);

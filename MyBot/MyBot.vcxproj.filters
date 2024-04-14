@@ -99,6 +99,9 @@
     <ClCompile Include="Commands\message_listener.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Commands\ReminderCommand.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyBot.h">
@@ -435,6 +438,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Headers\message_listener.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Headers\ReminderCommand.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

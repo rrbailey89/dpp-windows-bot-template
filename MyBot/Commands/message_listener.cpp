@@ -145,7 +145,7 @@ void message_listener::on_message_create(const dpp::message_create_t& event) {
     if (!trigger_word_found) {
         int random_value = distribution(generator);
 
-        if (random_value <= 30) {
+        if (random_value <= 25) {
             std::cout << "Triggering OpenAI API for message: " << message_content << std::endl;
             get_emoji_from_openai(message_content, event.msg);
         }

@@ -205,6 +205,7 @@
     <ClCompile Include="Commands\ModCommand.cpp" />
     <ClCompile Include="Commands\PollCommand.cpp" />
     <ClCompile Include="Commands\ReactionLogger.cpp" />
+    <ClCompile Include="Commands\ReminderCommand.cpp" />
     <ClCompile Include="Commands\rules_command.cpp" />
     <ClCompile Include="Commands\SetAvatar.cpp" />
     <ClCompile Include="Commands\SetPresence.cpp" />
@@ -319,6 +320,7 @@
     <ClInclude Include="Headers\pierce_brosnan_facts.h" />
     <ClInclude Include="Headers\PollCommand.h" />
     <ClInclude Include="Headers\ReactionLogger.h" />
+    <ClInclude Include="Headers\ReminderCommand.h" />
     <ClInclude Include="Headers\rules_command.h" />
     <ClInclude Include="Headers\SetAvatar.h" />
     <ClInclude Include="Headers\SetPresence.h" />

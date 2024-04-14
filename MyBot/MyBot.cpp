@@ -28,6 +28,7 @@
 #include "FunCommand.h"
 #include "ModCommand.h"
 #include "message_listener.h"
+#include "ReminderCommand.h"
 
 /* Be sure to place your token in the line below.
  * Follow steps here to get a token:
@@ -141,6 +142,45 @@ int main()
 				status_index = 0;
 			}
 			}, 300); // 5 minutes
+
+		bot.start_timer([&bot](const dpp::timer& timer) {
+			std::cout << "Timer triggered." << std::endl;
+
+			std::vector<std::tuple<int, std::string, std::string, std::string, std::string, dpp::snowflake>> due_reminders;
+			try {
+				due_reminders = get_due_reminders_with_id(); // Ensure this function is visible here
+				std::cout << "Fetched " << due_reminders.size() << " reminders from the database." << std::endl;
+			}
+			catch (const std::exception& e) {
+				std::cerr << "Error fetching reminders: " << e.what() << std::endl;
+				return;
+			}
+
+			for (const auto& reminder : due_reminders) {
+				int reminder_id = std::get<0>(reminder);
+				std::string reminder_text = std::get<1>(reminder);
+				std::string frequency = std::get<2>(reminder);
+				std::string day = std::get<3>(reminder);
+				std::string time = std::get<4>(reminder);
+				dpp::snowflake channel_id = std::get<5>(reminder);
+
+				try {
+					std::cout << "Sending message: " << reminder_text << " to channel ID: " << channel_id << std::endl;
+					bot.message_create(dpp::message(channel_id, reminder_text));
+				}
+				catch (const std::exception& e) {
+					std::cerr << "Error sending message: " << e.what() << std::endl;
+				}
+
+				try {
+					update_reminder_last_sent(reminder_id);
+					std::cout << "Updated last sent for reminder ID: " << reminder_id << std::endl;
+				}
+				catch (const std::exception& e) {
+					std::cerr << "Error updating last sent: " << e.what() << std::endl;
+				}
+			}
+			}, 15); // 15 seconds
 		});
 
 	/* Handle slash command with the most recent addition to D++ features, coroutines! */
@@ -196,6 +236,9 @@ int main()
 		else if (event.command.get_command_name() == "mod") {
 			commands::handle_mod_command(event, bot);
 		}
+		else if (event.command.get_command_name() == "reminder") {
+			commands::handle_reminder_command(event, bot);
+		}
 		co_return;
 		});
 
@@ -248,7 +291,7 @@ int main()
 	bot.on_guild_delete([&](const dpp::guild_delete_t& event) {
 		remove_guild_info(event.deleted.id);
 		});
-
+	
     /* Start the bot */
     bot.start(dpp::st_wait);
 	
