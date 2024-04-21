@@ -1,5 +1,5 @@
 #include "message_listener.h"
-#include "db_access.h"
+#include "DatabaseManager.h"
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -48,7 +48,7 @@ void message_listener::setup() {
 void message_listener::get_emoji_from_openai(const std::string& message, const dpp::message& original_message) {
     // OpenAI API setup
     const std::string endpoint = "https://api.openai.com/v1/chat/completions";
-    const std::string api_key = get_openai_api_key(); // Replace with your actual OpenAI API key
+    const std::string api_key = DatabaseManager::getInstance().getOpenAIApiKey(); // Replace with your actual OpenAI API key
 
     // Prepare the JSON payload
     nlohmann::json request_body = {
@@ -145,7 +145,7 @@ void message_listener::on_message_create(const dpp::message_create_t& event) {
     if (!trigger_word_found) {
         int random_value = distribution(generator);
 
-        if (random_value <= 25) {
+        if (random_value <= 15) {
             std::cout << "Triggering OpenAI API for message: " << message_content << std::endl;
             get_emoji_from_openai(message_content, event.msg);
         }
@@ -157,18 +157,14 @@ void message_listener::on_message_delete(const dpp::message_delete_t& event) {
     if (deleted_message != nullptr) {
         dpp::embed embed;
         embed.set_author(deleted_message->author.username, "", deleted_message->author.get_avatar_url())
-            .set_color(0xFF0000) // Red color
+            .set_color(0xFF0000)  // Red color
             .add_field("Deleted Message Info", "**Message sent by <@" + std::to_string(deleted_message->author.id) + "> in <#" + std::to_string(deleted_message->channel_id) + "> has been deleted.**", false);
 
         if (!deleted_message->content.empty()) {
             embed.add_field("Content", deleted_message->content, false);
         }
 
-        bool hasImageAttachment = std::any_of(deleted_message->attachments.begin(), deleted_message->attachments.end(), [](const dpp::attachment& att) {
-            return att.url.find(".png") != std::string::npos || att.url.find(".jpg") != std::string::npos || att.url.find(".jpeg") != std::string::npos || att.url.find(".gif") != std::string::npos;
-            });
-
-        if (hasImageAttachment) {
+        if (!deleted_message->attachments.empty()) {
             dpp::embed_footer footer;
             footer.set_text("An image was deleted with this post, attempting to upload below, Message ID: " + std::to_string(deleted_message->id));
             embed.set_footer(footer);
@@ -176,16 +172,25 @@ void message_listener::on_message_delete(const dpp::message_delete_t& event) {
 
         embed.set_timestamp(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
-        // Query the database to get the correct channel ID for this guild
-        uint64_t channel_id = get_message_delete_channel_id_for_guild(deleted_message->guild_id);
+        uint64_t channel_id = DatabaseManager::getInstance().getMessageDeleteChannelIdForGuild(deleted_message->guild_id);
 
-        if (channel_id > 0) { // Ensure a valid channel was found
-            bot.message_create(dpp::message(channel_id, embed), [this, deleted_message, hasImageAttachment, channel_id](const dpp::confirmation_callback_t& response) {
-                if (hasImageAttachment) {
-                    for (auto& attachment : deleted_message->attachments) {
-                        if (!attachment.url.empty()) {
-                            bot.message_create(dpp::message(channel_id, attachment.url));
-                        }
+        if (channel_id > 0) {  // Ensure a valid channel was found
+            bot.message_create(dpp::message(channel_id, embed), [this, deleted_message, channel_id](const dpp::confirmation_callback_t& response) {
+                for (auto& attachment : deleted_message->attachments) {
+                    if (!attachment.url.empty()) {
+                        // Download the image from the attachment URL
+                        bot.request(attachment.url, dpp::http_method::m_get,
+                            [this, channel_id, attachment](const dpp::http_request_completion_t& response) {
+                                if (response.status == 200) {  // HTTP OK
+                                    std::string ext = attachment.filename.substr(attachment.filename.find_last_of('.'));
+                                    std::string file_name = "deleted_image" + ext;
+                                    // Upload the downloaded image as a new attachment
+                                    dpp::message msg(channel_id, "");
+                                    msg.add_file(file_name, response.body);
+                                    bot.message_create(msg);
+                                }
+                            }
+                        );
                     }
                 }
                 });
@@ -207,9 +212,7 @@ void message_listener::on_message_delete_bulk(const dpp::message_delete_bulk_t& 
         dpp::message* deleted_message = message_cache.find(id);
         if (deleted_message != nullptr) {
             if (!channel_id_set) {
-                // Retrieve the correct channel ID for this guild from the database
-                // This assumes all messages in the bulk delete event are from the same guild
-                channel_id = get_message_delete_channel_id_for_guild(deleted_message->guild_id);
+                channel_id = DatabaseManager::getInstance().getMessageDeleteChannelIdForGuild(deleted_message->guild_id);
                 if (channel_id == 0) {
                     std::cerr << "No delete channel set for guild: " << deleted_message->guild_id << std::endl;
                     return; // Early exit if no channel is configured for the guild
@@ -224,11 +227,39 @@ void message_listener::on_message_delete_bulk(const dpp::message_delete_bulk_t& 
                 .add_field("Content", deleted_message->content, false)
                 .set_timestamp(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
-            // Send the embed to the dynamically determined channel ID
-            bot.message_create(dpp::message(channel_id, embed));
+            // Handle image attachments if any
+            bool hasImageAttachment = std::any_of(deleted_message->attachments.begin(), deleted_message->attachments.end(), [](const dpp::attachment& att) {
+                return att.url.find(".png") != std::string::npos || att.url.find(".jpg") != std::string::npos || att.url.find(".jpeg") != std::string::npos || att.url.find(".gif") != std::string::npos;
+                });
+
+            if (hasImageAttachment) {
+                dpp::embed_footer footer;
+                footer.set_text("This message had image(s) attached, attempting to re-upload.");
+                embed.set_footer(footer);
+            }
+
+            bot.message_create(dpp::message(channel_id, embed), [this, deleted_message, channel_id, hasImageAttachment](const dpp::confirmation_callback_t& response) {
+                if (hasImageAttachment) {
+                    // Attempt to re-upload the image attachments
+                    for (const auto& attachment : deleted_message->attachments) {
+                        if (!attachment.url.empty()) {
+                            bot.request(attachment.url, dpp::http_method::m_get,
+                                [this, channel_id, attachment](const dpp::http_request_completion_t& response) {
+                                    if (response.status == 200) {  // HTTP OK
+                                        std::string ext = attachment.filename.substr(attachment.filename.find_last_of('.'));
+                                        std::string file_name = "restored_image" + ext;
+                                        dpp::message msg(channel_id, "");
+                                        msg.add_file(file_name, response.body);
+                                        bot.message_create(msg);
+                                    }
+                                }
+                            );
+                        }
+                    }
+                }
+                });
 
             message_cache.remove(deleted_message); // Remove the message from cache after processing
-
             ++message_count;
         }
     }
@@ -261,7 +292,7 @@ void message_listener::on_slashcommand(const dpp::slashcommand_t& event) {
             std::string guild_name = event.command.get_guild().name;
 
             // Perform your logic to set the message delete channel here
-            set_message_delete_channel(guild_id, guild_name, channel_id); // Adjust your function call accordingly
+            DatabaseManager::getInstance().setMessageDeleteChannel(guild_id, guild_name, channel_id); // Adjust your function call accordingly
 
             event.reply("Delete channel set successfully.");
         }

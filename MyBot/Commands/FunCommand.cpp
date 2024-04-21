@@ -1,7 +1,7 @@
 #include "FunCommand.h"
 #include <random>
 #include <unordered_map>
-#include <db_access.h>
+#include "DatabaseManager.h"
 
 namespace commands {
 
@@ -93,10 +93,10 @@ namespace commands {
             dpp::user invoker = event.command.usr;
 
             // Get the current hug count for the mentioned user
-            int hug_count = get_user_hug_count(user_id);
+            int hug_count = DatabaseManager::getInstance().getUserHugCount(user_id);
 
             // Increment the hug count
-            increment_user_hug_count(user_id);
+            DatabaseManager::getInstance().incrementUserHugCount(user_id);
 
             // Create the message text with user mentions and hug count
             std::string message_text = mentioned_user.get_mention() + "was hugged by " + invoker.get_mention() + " they have been hugged " + std::to_string(hug_count + 1) + " times.";

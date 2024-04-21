@@ -1,5 +1,5 @@
 #include "ReminderCommand.h"
-#include "db_access.h"
+#include "DatabaseManager.h"
 
 namespace commands {
     dpp::slashcommand register_reminder_command(dpp::cluster& bot) {
@@ -21,6 +21,13 @@ namespace commands {
             .add_option(dpp::command_option(dpp::co_string, "time", "Reminder time (HH:MM AM/PM)", true))
             .add_option(dpp::command_option(dpp::co_channel, "channel", "Channel to send reminder", true))
         );
+        reminder_command.add_option(
+            dpp::command_option(dpp::co_sub_command, "remove", "Remove an existing reminder")
+            .add_option(dpp::command_option(dpp::co_integer, "id", "The ID of the reminder to remove", true))
+        );
+
+        reminder_command.set_default_permissions(dpp::p_manage_guild);
+
         return reminder_command;
     }
 
@@ -64,10 +71,23 @@ namespace commands {
 
                 // Store the reminder information in the database
                 bot.log(dpp::ll_info, "Storing reminder in the database...");
-                store_reminder(event.command.guild_id, reminder_text, frequency, day, time, channel_id);
+                DatabaseManager::getInstance().storeReminder(event.command.guild_id, reminder_text, frequency, day, time, channel_id);
                 bot.log(dpp::ll_info, "Reminder stored successfully.");
 
                 event.reply("Reminder created successfully!");
+            }
+            else if (subcommand_name == "remove") {
+                int64_t reminder_id = std::get<int64_t>(event.get_parameter("id"));
+                bot.log(dpp::ll_info, "Attempting to remove reminder with ID: " + std::to_string(reminder_id));
+
+                // Function to remove the reminder from the database
+                bool success = DatabaseManager::getInstance().removeReminder(reminder_id);
+                if (success) {
+                    event.reply("Reminder removed successfully!");
+                }
+                else {
+                    event.reply("Failed to remove the reminder. It may not exist or there was a database error.");
+                }
             }
             else {
                 // Unknown subcommand
