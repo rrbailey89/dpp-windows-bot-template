@@ -1,5 +1,5 @@
 #include "BlameSerena.h"
-#include "db_access.h" // Include your database access functions
+#include "DatabaseManager.h" // Include your database access functions
 #include <iostream> // Include for logging
 #include <chrono> // Include for time calculations
 
@@ -16,9 +16,9 @@ namespace commands {
         std::cout << "Handling /blameserena command." << std::endl;
 
         // Get the last used time for the blameserena command
-        auto last_used = get_last_used_time(event.command.usr.id, "blameserena");
+        auto last_used = DatabaseManager::getInstance().getLastUsedTime(event.command.usr.id, "blameserena");
         auto now = std::chrono::system_clock::now();
-        auto cooldown_end = last_used + cooldown_duration;
+        auto cooldown_end = last_used + DatabaseManager::COOLDOWN_DURATION;
 
         // Check if the user is currently on cooldown
         if (now < cooldown_end) {
@@ -37,13 +37,13 @@ namespace commands {
         }
         else {
             // If not on cooldown, update the cooldown for this user and command
-            update_cooldown(event.command.usr.id, "blameserena");
+            DatabaseManager::getInstance().updateCooldown(event.command.usr.id, "blameserena");
 
             // Increment the blame count in the database
-            execute_sql("UPDATE blame_count SET count = count + 1 WHERE id = 1;");
+            DatabaseManager::getInstance().incrementBlameCount();
 
             // Fetch the updated count
-            int blame_count = get_blame_count();
+            int blame_count = DatabaseManager::getInstance().getBlameCount();
 
             // Update the bot's status
             std::string status_text = "Serena Blamed " + std::to_string(blame_count) + " Times";

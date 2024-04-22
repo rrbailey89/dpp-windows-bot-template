@@ -1,7 +1,7 @@
 #include "SetAvatar.h"
 #include <dpp/dpp.h>
 #include <iostream>
-#include "db_access.h"
+#include "DatabaseManager.h"
 
 namespace commands {
 
@@ -15,7 +15,7 @@ namespace commands {
     }
     
     void handle_setavatar_command(const dpp::slashcommand_t& event, dpp::cluster& bot) {
-        dpp::snowflake bot_owner_id = get_bot_owner_id(); // Fetch the owner ID
+        dpp::snowflake bot_owner_id = DatabaseManager::getInstance().getBotOwnerId(); // Fetch the owner ID
 
         if (event.command.usr.id != bot_owner_id) {
             // If the user is not the owner, reply with an error message and return

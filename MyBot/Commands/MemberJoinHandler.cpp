@@ -1,7 +1,7 @@
 #include "MemberJoinHandler.h"
 #include <iostream>
 #include <chrono>
-#include "db_access.h"
+#include "DatabaseManager.h"
 
 namespace commands {
 
@@ -16,13 +16,13 @@ namespace commands {
     void setup_memberjoin_handler(dpp::cluster& bot) {
         bot.on_guild_member_add([&bot](const dpp::guild_member_add_t& event) {
             // Check if a channel has been set for the guild in the guild_member_join_channels table
-            dpp::snowflake join_channel_id = get_member_join_channel_for_guild(event.added.guild_id);
+            dpp::snowflake join_channel_id = DatabaseManager::getInstance().getMemberJoinChannelForGuild(event.added.guild_id);
             if (join_channel_id != 0) {
                 // Retrieve the user object
                 dpp::user* user = event.added.get_user();
 
                 // Retrieve the guild name from the database
-                std::string guild_name = get_guild_name(event.added.guild_id);
+                std::string guild_name = DatabaseManager::getInstance().getGuildName(event.added.guild_id);
 
                 // Calculate the age of the account in days
                 auto account_creation_time = std::chrono::system_clock::from_time_t(user->get_creation_time());
@@ -47,7 +47,7 @@ namespace commands {
 
                     int64_t join_timestamp = event.added.joined_at;
 
-                    store_user_join_date(event.added.guild_id, user->id, join_timestamp);
+                    DatabaseManager::getInstance().storeUserJoinDate(event.added.guild_id, user->id, join_timestamp);
 
                     dpp::embed welcome_embed;
                     welcome_embed.set_author(user->username, "", user->get_avatar_url());
@@ -57,7 +57,7 @@ namespace commands {
                     int64_t now_timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
 
                     // Use the guild name in plain text instead of a mention, fetched from the database
-                    std::string guild_name = get_guild_name(event.added.guild_id);
+                    std::string guild_name = DatabaseManager::getInstance().getGuildName(event.added.guild_id);
 
                     welcome_embed.set_description(
                         "User <@" + std::to_string(user->id) + "> joined " + guild_name +
@@ -84,7 +84,7 @@ namespace commands {
                     dpp::snowflake guild_id = event.command.guild_id;
 
                     // Perform your logic to set the message delete channel here
-                    set_member_join_channel_for_guild(event.command.guild_id, channel_id);
+                    DatabaseManager::getInstance().setMemberJoinChannelForGuild(event.command.guild_id, channel_id);
 
                     event.co_reply("Member join channel set to <#" + std::to_string(channel_id) + ">.");
                 }
@@ -96,9 +96,9 @@ namespace commands {
 
         bot.on_guild_member_remove([&bot](const dpp::guild_member_remove_t& event) {
             // Check if a channel has been set for the guild in the guild_member_join_channels table
-            dpp::snowflake join_channel_id = get_member_join_channel_for_guild(event.guild_id);
+            dpp::snowflake join_channel_id = DatabaseManager::getInstance().getMemberJoinChannelForGuild(event.guild_id);
             if (join_channel_id != 0) {
-                std::string join_date = get_user_join_date(event.guild_id, event.removed.id);
+                std::string join_date = DatabaseManager::getInstance().getUserJoinDate(event.guild_id, event.removed.id);
 
                 // Construct the avatar URL
                 std::string avatar_url = event.removed.get_avatar_url();

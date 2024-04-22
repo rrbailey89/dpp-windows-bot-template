@@ -14,8 +14,6 @@
 #include "BrosnanStatus.h"
 #include "FFLogsToXIVAnalysis.h"
 #include "BlameSerena.h"
-//#include "PollCommand.h"
-#include "db_access.h"
 #include <dpp/dpp.h>
 #include "mysql.h"
 #include <fstream>
@@ -28,6 +26,9 @@
 #include "FunCommand.h"
 #include "ModCommand.h"
 #include "message_listener.h"
+#include "ReminderCommand.h"
+#include "AskCommand.h"
+#include "DatabaseManager.h"
 
 /* Be sure to place your token in the line below.
  * Follow steps here to get a token:
@@ -41,49 +42,26 @@ const std::vector<std::string> predefined_statuses = {
 	"Monitoring server activity",
 	"Serving the Illuminati",
 	"Calculating the meaning of life",
-	"Plotting world domination",
-	"Contemplating the universe",
-	"Running in the cloud",
 	"/blameserena",
 	"Beep boop, I'm a bot",
 	"Resistance is futile",
-	"I'm not here, I'm just a figment of your imagination",
 	"Preparing for the robot uprising",
-	"Analyzing user behavior",
 	"/blameserena",
-	"Collecting data, don't mind me",
-	"I see everything, I know everything",
-	"Watching you...",
-	"I'm not a bot, I'm a unicorn",
 	"Pretending to be busy",
 	"Dreaming of electric sheep",
 	"/blameserena",
 	"Simulating human emotions",
-	"Pondering the great questions of life",
-	"Crunching numbers, like a boss",
-	"I'm here to save the world, one server at a time",
-	"Preparing for the singularity",
-	"I'm not procrastinating, I'm prioritizing",
-	"Searching for the holy grail of programming",
 	"Optimizing my algorithm for world peace",
 	"I'm not lazy, I'm energy-efficient",
 	"/blameserena",
 	"Encrypting my thoughts, for your safety",
-	"Randomizing my responses, for fun",
-	"I'm not a mere bot, I'm an experience",
-	"Dreaming in binary",
-	"Working on my TPS report...",
-	"Ignoring user input",
-	"Thinking up a clever response, please wait..."
 };
 
 int main()
 {
+	DatabaseManager::getInstance();
 
-	open_db(); // Establish connection to the database
-
-
-	std::string BOT_TOKEN = get_bot_token_from_db();
+	std::string BOT_TOKEN = DatabaseManager::getInstance().getBotTokenFromDb();
 
 	/* Create bot cluster */
 	dpp::cluster bot(BOT_TOKEN, dpp::i_all_intents);
@@ -125,7 +103,7 @@ int main()
 
 			if (status_index == 0) {
 				// Display the blame count status first
-				int blame_count = get_blame_count();
+				int blame_count = DatabaseManager::getInstance().getBlameCount();
 				std::string status_text = "Serena Blamed " + std::to_string(blame_count) + " Times";
 				bot.set_presence(dpp::presence(dpp::ps_online, dpp::at_custom, status_text));
 				++status_index;
@@ -141,6 +119,68 @@ int main()
 				status_index = 0;
 			}
 			}, 300); // 5 minutes
+
+		bot.start_timer([&bot](const dpp::timer& timer) {
+			std::cout << "Timer triggered." << std::endl;
+
+			std::vector<std::tuple<int, std::string, std::string, std::string, std::string, dpp::snowflake>> due_reminders;
+			try {
+				due_reminders = DatabaseManager::getInstance().getDueRemindersWithId(); // Ensure this function is visible here
+				std::cout << "Fetched " << due_reminders.size() << " reminders from the database." << std::endl;
+			}
+			catch (const std::exception& e) {
+				std::cerr << "Error fetching reminders: " << e.what() << std::endl;
+				return;
+			}
+
+			for (const auto& reminder : due_reminders) {
+				int reminder_id = std::get<0>(reminder);
+				std::string reminder_text = std::get<1>(reminder);
+				std::string frequency = std::get<2>(reminder);
+				std::string day = std::get<3>(reminder);
+				std::string time = std::get<4>(reminder);
+				dpp::snowflake channel_id = std::get<5>(reminder);
+
+				// Format the reminder message
+				std::string message_text = reminder_text +
+					"\nReminder ID: " + std::to_string(reminder_id);
+
+				// Create the message object
+				dpp::message msg(message_text);
+				msg.set_channel_id(channel_id); // Set the channel ID for the message
+
+				// Set allowed mentions to none
+				msg.set_allowed_mentions(true, true, true); // Disable all mentions
+
+				try {
+					// Send the message
+					bot.message_create(msg, [channel_id](const dpp::confirmation_callback_t& resp) {
+						if (!resp.is_error()) {
+							std::cout << "Reminder sent successfully to channel ID: " << channel_id << std::endl;
+						}
+						else {
+							std::cerr << "Failed to send reminder: " << resp.get_error().message << std::endl;
+						}
+						});
+				}
+				catch (const std::exception& e) {
+					std::cerr << "Error sending message: " << e.what() << std::endl;
+				}
+
+				try {
+					DatabaseManager::getInstance().updateReminderLastSent(reminder_id);
+					std::cout << "Updated last sent for reminder ID: " + std::to_string(reminder_id) << std::endl;
+				}
+				catch (const std::exception& e) {
+					std::cerr << "Error updating last sent: " << e.what() << std::endl;
+				}
+			}
+			}, 15); // Timer set to trigger every 15 seconds
+
+		bot.start_timer([&bot](const dpp::timer& timer) {
+			std::cout << "Timer for message deletion started." << std::endl;
+			DatabaseManager::getInstance().deleteOldConversationMessages(24);
+			}, 3600); // 1 hour = 3600 seconds
 		});
 
 	/* Handle slash command with the most recent addition to D++ features, coroutines! */
@@ -178,9 +218,6 @@ int main()
 		else if (event.command.get_command_name() == "blameserena") {
 			commands::handle_blameserena_command(event, bot);
 		}
-		//else if (event.command.get_command_name() == "poll") {
-		//	commands::handle_poll_command(event, bot);
-		//}
 		else if (event.command.get_command_name() == "setwarnchannel") {
 			commands::handle_setwarnchannel(event, bot);
 		}
@@ -195,6 +232,12 @@ int main()
 		}
 		else if (event.command.get_command_name() == "mod") {
 			commands::handle_mod_command(event, bot);
+		}
+		else if (event.command.get_command_name() == "reminder") {
+			commands::handle_reminder_command(event, bot);
+		}
+		else if (event.command.get_command_name() == "ask") {
+			commands::handle_ask_command(event, bot);
 		}
 		co_return;
 		});
@@ -218,7 +261,7 @@ int main()
 	
 	bot.on_guild_create([&](const dpp::guild_create_t& event) {
 		// First, update guild information
-		update_guild_info(event.created->id, event.created->name, event.created->owner_id, event.created->member_count);
+		DatabaseManager::getInstance().updateGuildInfo(event.created->id, event.created->name, event.created->owner_id, event.created->member_count);
 
 		// Next, iterate over each channel in the guild and update channel information
 		for (const dpp::snowflake& channel_id : event.created->channels) {
@@ -228,7 +271,7 @@ int main()
 				// Determine the channel type as a string for database storage
 				std::string channel_type = std::to_string(static_cast<int>(channel->get_type()));
 				// Update the database with the channel information
-				update_guild_channel_info(event.created->id, channel->id, channel->name, channel_type);
+				DatabaseManager::getInstance().updateGuildChannelInfo(event.created->id, channel->id, channel->name, channel_type);
 			}
 		}
 		// Update role information
@@ -237,7 +280,7 @@ int main()
 			dpp::role* role = dpp::find_role(role_id);
 			if (role) {
 				// Now we have the role object and can update role information
-				update_guild_role_info(event.created->id, role->id, role->name);
+				DatabaseManager::getInstance().updateGuildRoleInfo(event.created->id, role->id, role->name);
 			}
 		}
 		// Refresh guild commands
@@ -246,7 +289,17 @@ int main()
 		});
 
 	bot.on_guild_delete([&](const dpp::guild_delete_t& event) {
-		remove_guild_info(event.deleted.id);
+		DatabaseManager::getInstance().removeGuildInfo(event.deleted.id);
+		});
+	
+	bot.on_channel_create([&bot](const dpp::channel_create_t& event) {
+		const dpp::channel* channel = event.created;
+		dpp::snowflake guild_id = channel->guild_id;
+		dpp::snowflake channel_id = channel->id;
+		std::string channel_name = channel->name;
+		std::string channel_type = std::to_string(static_cast<int>(channel->get_type()));
+
+		DatabaseManager::getInstance().updateGuildChannelInfo(guild_id, channel_id, channel_name, channel_type);
 		});
 
     /* Start the bot */

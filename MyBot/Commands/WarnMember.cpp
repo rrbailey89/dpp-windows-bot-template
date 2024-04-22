@@ -1,6 +1,6 @@
 #include "WarnMember.h"
 #include "GuildCommands.h"
-#include "db_access.h"
+#include "DatabaseManager.h"
 
 namespace commands {
 
@@ -20,10 +20,10 @@ namespace commands {
 
     void handle_warn_member(const dpp::slashcommand_t& event, dpp::cluster& bot) {
         dpp::snowflake guild_id = event.command.guild_id; // Declare and initialize guild_id here
-        dpp::snowflake bot_owner_id = get_bot_owner_id(); // Fetch the owner ID
+        dpp::snowflake bot_owner_id = DatabaseManager::getInstance().getBotOwnerId(); // Fetch the owner ID
 
         // Check if the warn command is enabled for this guild
-        if (!is_command_enabled_for_guild(guild_id, "warn")) {
+        if (!DatabaseManager::getInstance().isCommandEnabledForGuild(guild_id, "warn")) {
             event.reply("The warn command is disabled for this guild.");
             return;
         }
@@ -43,7 +43,7 @@ namespace commands {
         }
 
         // Fetch warn_channel_id dynamically based on the guild_id from the event
-        dpp::snowflake warn_channel_id = get_warn_channel_id_for_guild(guild_id); // This function needs to be implemented
+        dpp::snowflake warn_channel_id = DatabaseManager::getInstance().getWarnChannelIdForGuild(guild_id); // This function needs to be implemented
 
         dpp::embed warnEmbed;
         warnEmbed.set_color(dpp::colors::red)
@@ -68,14 +68,14 @@ namespace commands {
         dpp::snowflake channel_id = std::get<dpp::snowflake>(event.get_parameter("channel"));
 
         // Check if the user executing the command is the guild owner
-        dpp::snowflake owner_id = get_guild_owner_id(guild_id); // Implement this function to fetch the owner ID from the guild_info table
+        dpp::snowflake owner_id = DatabaseManager::getInstance().getGuildOwnerId(guild_id); // Implement this function to fetch the owner ID from the guild_info table
         if (event.command.usr.id != owner_id) {
             event.reply("This command can only be used by the guild's owner.");
             return;
         }
 
         // Set the warn channel in the database
-        set_warn_channel_for_guild(guild_id, channel_id); // Implement this function to update the warn_channel_ids table
+        DatabaseManager::getInstance().setWarnChannelForGuild(guild_id, channel_id); // Implement this function to update the warn_channel_ids table
 
         event.reply("Warn channel set successfully.");
     }

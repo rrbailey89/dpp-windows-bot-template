@@ -1,7 +1,7 @@
 #include "rules_command.h"
 #include <fstream>
 #include <vector>
-#include "db_access.h"
+#include "DatabaseManager.h"
 
 namespace commands {
 
@@ -39,7 +39,7 @@ namespace commands {
 
         dpp::snowflake guild_id = event.command.guild_id;
         dpp::snowflake invoker_id = event.command.usr.id;
-        dpp::snowflake owner_id = get_guild_owner_id(guild_id);
+        dpp::snowflake owner_id = DatabaseManager::getInstance().getGuildOwnerId(guild_id);
 
         if (invoker_id != owner_id) {
             event.reply("You must be the guild owner to use this command.");
@@ -51,7 +51,7 @@ namespace commands {
             dpp::snowflake guild_id = event.command.guild_id;
 
             // Add rule to the database for this guild
-            add_guild_rule(guild_id, new_rule);
+            DatabaseManager::getInstance().addGuildRule(guild_id, new_rule);
 
             event.reply("Rule added successfully.");
         }
@@ -65,7 +65,7 @@ namespace commands {
                 if constexpr (std::is_same_v<T, int64_t>) {
                     // If the type is int64_t, proceed to remove the rule
                     int rule_number = static_cast<int>(arg);
-                    remove_guild_rule(event.command.guild_id, rule_number);
+                    DatabaseManager::getInstance().removeGuildRule(event.command.guild_id, rule_number);
                     event.reply("Rule removed successfully.");
                 }
                 else {
@@ -83,7 +83,7 @@ namespace commands {
             dpp::snowflake guild_id = event.command.guild_id;
 
             // Get rules from the database for this specific guild
-            std::vector<std::string> rules = get_guild_rules(guild_id);
+            std::vector<std::string> rules = DatabaseManager::getInstance().getGuildRules(guild_id);
 
             // Initialize an embed to send the rules
             dpp::embed rules_embed;
@@ -128,7 +128,7 @@ namespace commands {
             auto response = std::make_shared<dpp::slashcommand_t>(event);
 
             // Fetch updated rules from the database
-            std::vector<std::string> rules = get_guild_rules(guild_id);
+            std::vector<std::string> rules = DatabaseManager::getInstance().getGuildRules(guild_id);
 
             // Retrieve messages from the channel to find the rules message
             bot.messages_get(channel_id, 0, 0, 0, 100, [response, &bot, channel_id, rules](const dpp::confirmation_callback_t& confirmation) {
