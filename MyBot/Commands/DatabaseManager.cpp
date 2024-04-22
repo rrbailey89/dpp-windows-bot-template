@@ -275,9 +275,9 @@ std::vector<std::tuple<int, std::string, std::string, std::string, std::string, 
             localtime.tm_wday == 4 ? "thursday" :
             localtime.tm_wday == 5 ? "friday" : "saturday";
         std::string sql = "SELECT id, reminder_text, frequency, day, time, channel_id FROM reminders "
-            "WHERE (frequency = 'weekly' AND day = ? AND TIME(STR_TO_DATE(time, '%l:%i %p')) <= TIME(NOW()) AND (last_sent IS NULL OR DATE(last_sent) <> CURDATE())) "
-            "OR (frequency = 'monthly' AND MONTH(last_sent) <> MONTH(CURDATE()) AND TIME(STR_TO_DATE(time, '%l:%i %p')) <= TIME(NOW())) "
-            "OR (frequency = 'monthly' AND last_sent IS NULL AND TIME(STR_TO_DATE(time, '%l:%i %p')) <= TIME(NOW()))";
+            "WHERE (frequency = 'weekly' AND day = ? AND STR_TO_DATE(CONCAT(CURDATE(), ' ', time), '%Y-%m-%d %l:%i %p') <= NOW() AND (last_sent IS NULL OR DATE(last_sent) <> CURDATE())) "
+            "OR (frequency = 'monthly' AND MONTH(last_sent) <> MONTH(CURDATE()) AND STR_TO_DATE(CONCAT(CURDATE(), ' ', time), '%Y-%m-%d %l:%i %p') <= NOW()) "
+            "OR (frequency = 'monthly' AND last_sent IS NULL AND STR_TO_DATE(CONCAT(CURDATE(), ' ', time), '%Y-%m-%d %l:%i %p') <= NOW())";
         mysqlx::SqlStatement stmt = session.sql(sql);
         stmt.bind(currentDay);
         mysqlx::RowResult result = stmt.execute();
