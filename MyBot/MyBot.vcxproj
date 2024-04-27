@@ -197,7 +197,7 @@
     <ClCompile Include="Commands\command_refresh.cpp" />
     <ClCompile Include="Commands\CreateRolesButton.cpp" />
     <ClCompile Include="Commands\DatabaseManager.cpp" />
-    <ClCompile Include="Commands\FactsCommand.cpp" />
+    <ClCompile Include="Commands\FactsCommandHandler.cpp" />
     <ClCompile Include="Commands\FFLogsToXIVAnalysis.cpp" />
     <ClCompile Include="Commands\FunCommand.cpp" />
     <ClCompile Include="Commands\GrantRoles.cpp" />
@@ -310,7 +310,7 @@
     <ClInclude Include="Headers\command_refresh.h" />
     <ClInclude Include="Headers\CreateRolesButton.h" />
     <ClInclude Include="Headers\DatabaseManager.h" />
-    <ClInclude Include="Headers\FactsCommand.h" />
+    <ClInclude Include="Headers\FactsCommandHandler.h" />
     <ClInclude Include="Headers\FFLogsToXIVAnalysis.h" />
     <ClInclude Include="Headers\FunCommand.h" />
     <ClInclude Include="Headers\grantroles.h" />

@@ -1,6 +1,5 @@
 #include "MyBot.h"
 #include "CleanCommand.h"
-#include "FactsCommand.h"
 #include "GrantRoles.h"
 #include "UpdateRaidTime.h"
 #include "rules_command.h"
@@ -29,6 +28,7 @@
 #include "ReminderCommand.h"
 #include "AskCommand.h"
 #include "DatabaseManager.h"
+#include "FactsCommandHandler.h"
 
 /* Be sure to place your token in the line below.
  * Follow steps here to get a token:
@@ -192,7 +192,7 @@ int main()
 			co_await commands::handle_clean_command(event, bot);
 		}
 		else if (event.command.get_command_name() == "facts") {
-			commands::handle_facts_command(event, bot);
+			FactsCommandHandler(bot).handleCommand(event);
 		}
 		else if (event.command.get_command_name() == "grantrole") {
 			commands::handle_grantroles_command(event, bot);
