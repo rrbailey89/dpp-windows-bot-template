@@ -36,7 +36,7 @@ public:
     void setCommandEnabledOrDisabledForGuild(dpp::snowflake guild_id, const std::string& command, bool enabled);
     std::string getGuildName(dpp::snowflake guild_id);
     void storeUserJoinDate(dpp::snowflake guild_id, dpp::snowflake user_id, int64_t join_date);
-    std::string getUserJoinDate(dpp::snowflake guild_id, dpp::snowflake user_id);
+    int64_t getUserJoinTimestamp(dpp::snowflake guild_id, dpp::snowflake user_id);
     void setMemberJoinChannelForGuild(dpp::snowflake guild_id, dpp::snowflake channel_id);
     dpp::snowflake getMemberJoinChannelForGuild(dpp::snowflake guild_id);
     int getUserHugCount(dpp::snowflake user_id);
@@ -47,6 +47,8 @@ public:
     void storeConversationMessage(dpp::snowflake user_id, const nlohmann::json& message);
     std::vector<nlohmann::json> getConversation(dpp::snowflake user_id);
     std::string unescapeJson(const std::string& json);
+    std::string getConversationThreadIdForUser(dpp::snowflake user_id);
+    void storeConversationThreadIdForUser(dpp::snowflake user_id, const std::string& thread_id);
 
 
 private:

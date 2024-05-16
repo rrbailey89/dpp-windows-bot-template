@@ -663,14 +663,14 @@ std::string DatabaseManager::getGuildName(dpp::snowflake guild_id) {
     return "";
 }
 
-void DatabaseManager::storeUserJoinDate(dpp::snowflake guild_id, dpp::snowflake user_id, int64_t join_date) {
+void DatabaseManager::storeUserJoinDate(dpp::snowflake guild_id, dpp::snowflake user_id, int64_t join_timestamp) {
     try {
         mysqlx::Session& session = getSession();
         std::string sql = "INSERT INTO guild_member_join_dates (guild_id, user_id, join_date) VALUES (?, ?, FROM_UNIXTIME(?)) ON DUPLICATE KEY UPDATE join_date = VALUES(join_date);";
         session.sql(sql)
             .bind(static_cast<uint64_t>(guild_id))
             .bind(static_cast<uint64_t>(user_id))
-            .bind(join_date)
+            .bind(join_timestamp)
             .execute();
         std::cout << "Join date stored successfully" << std::endl;
     }
@@ -685,17 +685,17 @@ void DatabaseManager::storeUserJoinDate(dpp::snowflake guild_id, dpp::snowflake 
     }
 }
 
-std::string DatabaseManager::getUserJoinDate(dpp::snowflake guild_id, dpp::snowflake user_id) {
+int64_t DatabaseManager::getUserJoinTimestamp(dpp::snowflake guild_id, dpp::snowflake user_id) {
     try {
         mysqlx::Session& session = getSession();
-        std::string sql = "SELECT DATE_FORMAT(join_date, '%Y-%m-%d %H:%i:%s') AS join_date FROM guild_member_join_dates WHERE guild_id = ? AND user_id = ? LIMIT 1;";
+        std::string sql = "SELECT UNIX_TIMESTAMP(join_date) AS join_timestamp FROM guild_member_join_dates WHERE guild_id = ? AND user_id = ? LIMIT 1;";
         mysqlx::RowResult result = session.sql(sql)
             .bind(static_cast<uint64_t>(guild_id))
             .bind(static_cast<uint64_t>(user_id))
             .execute();
         if (result.count() > 0) {
             mysqlx::Row row = result.fetchOne();
-            return row[0].get<std::string>();
+            return row[0].get<int64_t>();
         }
     }
     catch (const mysqlx::Error& err) {
@@ -707,7 +707,7 @@ std::string DatabaseManager::getUserJoinDate(dpp::snowflake guild_id, dpp::snowf
     catch (...) {
         std::cerr << "Unknown error occurred." << std::endl;
     }
-    return "";
+    return 0;
 }
 
 void DatabaseManager::setMemberJoinChannelForGuild(dpp::snowflake guild_id, dpp::snowflake channel_id) {
@@ -988,4 +988,47 @@ std::vector<nlohmann::json> DatabaseManager::getConversation(dpp::snowflake user
         std::cerr << "Unknown error occurred." << std::endl;
     }
     return {};
+}
+
+std::string DatabaseManager::getConversationThreadIdForUser(dpp::snowflake user_id) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "SELECT conversation_id FROM user_conversation_ids WHERE user_id = ? LIMIT 1;";
+        mysqlx::RowResult result = session.sql(sql).bind(static_cast<uint64_t>(user_id)).execute();
+        if (result.count() > 0) {
+            mysqlx::Row row = result.fetchOne();
+            return row[0].get<std::string>();
+        }
+    }
+    catch (const mysqlx::Error& err) {
+        std::cerr << "Database operation error: " << err.what() << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Standard exception: " << e.what() << std::endl;
+    }
+    catch (...) {
+        std::cerr << "Unknown error occurred." << std::endl;
+    }
+    return "";
+}
+
+void DatabaseManager::storeConversationThreadIdForUser(dpp::snowflake user_id, const std::string& thread_id) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "INSERT INTO user_conversation_ids (user_id, conversation_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE conversation_id = VALUES(conversation_id);";
+        session.sql(sql)
+            .bind(static_cast<uint64_t>(user_id))
+            .bind(thread_id)
+            .execute();
+        std::cout << "Conversation thread ID stored successfully" << std::endl;
+    }
+    catch (const mysqlx::Error& err) {
+        std::cerr << "Database operation error: " << err.what() << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Standard exception: " << e.what() << std::endl;
+    }
+    catch (...) {
+        std::cerr << "Unknown error occurred." << std::endl;
+    }
 }
