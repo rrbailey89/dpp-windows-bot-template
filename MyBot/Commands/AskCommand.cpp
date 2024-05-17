@@ -19,8 +19,15 @@ namespace commands {
             .add_option(dpp::command_option(dpp::co_string, "query", "The question to ask", true))
         );
         ask_command.add_option(
-            dpp::command_option(dpp::co_sub_command, "image", "Generate an image using the DALL-E 3 model")
+            dpp::command_option(dpp::co_sub_command, "image", "Generate an image using the DALL-E model")
             .add_option(dpp::command_option(dpp::co_string, "prompt", "The prompt for image generation", true))
+            .add_option(dpp::command_option(dpp::co_string, "model", "The model to use for image generation (dall-e-2 or dall-e-3)", false)
+                .add_choice(dpp::command_option_choice("dall-e-2", std::string("dall-e-2")))
+                .add_choice(dpp::command_option_choice("dall-e-3", std::string("dall-e-3"))))
+            .add_option(dpp::command_option(dpp::co_boolean, "hd", "Generate an HD image (only available with dall-e-3)", false))
+            .add_option(dpp::command_option(dpp::co_string, "style", "The style of the generated image (vivid or natural)", false)
+                .add_choice(dpp::command_option_choice("vivid", std::string("vivid")))
+                .add_choice(dpp::command_option_choice("natural", std::string("natural"))))
         );
         return ask_command;
     }
@@ -301,107 +308,131 @@ namespace commands {
 }
 else if (sub_command == "image") {
     std::string prompt = std::get<std::string>(event.get_parameter("prompt"));
+    std::string model = std::holds_alternative<std::string>(event.get_parameter("model")) ? std::get<std::string>(event.get_parameter("model")) : "dall-e-2";
+    bool use_hd = std::holds_alternative<bool>(event.get_parameter("hd")) ? std::get<bool>(event.get_parameter("hd")) : false;
+    std::string style = std::holds_alternative<std::string>(event.get_parameter("style")) ? std::get<std::string>(event.get_parameter("style")) : "vivid";
 
-    // OpenAI DALL-E 3 API setup
-    const std::string endpoint = "https://api.openai.com/v1/images/generations";
-    const std::string api_key = DatabaseManager::getInstance().getOpenAIApiKey();
+    event.thinking(); // Indicate that the command is being processed
 
-    nlohmann::json request_body = {
-        {"model", "dall-e-3"},
-        {"prompt", prompt},
-        {"n", 1},
-        {"size", "1024x1024"}
-    };
+    // Create a new thread to handle the image command asynchronously
+    std::thread image_thread([&bot, prompt, model, use_hd, style, event]() {
+        // OpenAI DALL-E API setup
+        const std::string endpoint = "https://api.openai.com/v1/images/generations";
+        const std::string api_key = DatabaseManager::getInstance().getOpenAIApiKey();
 
-    std::string request_body_str = request_body.dump();
+        nlohmann::json request_body = {
+            {"prompt", prompt},
+            {"n", 1}
+        };
 
-    // Initialize libcurl
-    CURL* curl = curl_easy_init();
-    if (curl) {
-        // Set the request URL
-        curl_easy_setopt(curl, CURLOPT_URL, endpoint.c_str());
+        if (model == "dall-e-3") {
+            request_body["model"] = "dall-e-3";
+            request_body["size"] = "1024x1024";
+            if (use_hd) {
+                request_body["quality"] = "hd";
+            }
+            request_body["style"] = style;
+        }
+        else {
+            request_body["model"] = "dall-e-2";
+            request_body["size"] = "1024x1024";
+        }
 
-        // Set the request method to POST
-        curl_easy_setopt(curl, CURLOPT_POST, 1L);
+        std::string request_body_str = request_body.dump();
 
-        // Set the request headers
-        struct curl_slist* headers = nullptr;
-        headers = curl_slist_append(headers, ("Authorization: Bearer " + api_key).c_str());
-        headers = curl_slist_append(headers, "Content-Type: application/json");
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        // Print the request body to the console
+        std::cout << "Request Body: " << request_body.dump(4) << std::endl;
 
-        // Set the request body
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body_str.c_str());
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, request_body_str.length());
+        // Initialize libcurl
+        CURL* curl = curl_easy_init();
+        if (curl) {
+            // Set the request URL
+            curl_easy_setopt(curl, CURLOPT_URL, endpoint.c_str());
 
-        // Set the response callback
-        std::string response_body;
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_body);
+            // Set the request method to POST
+            curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
-        // Disable SSL certificate verification
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+            // Set the request headers
+            struct curl_slist* headers = nullptr;
+            headers = curl_slist_append(headers, ("Authorization: Bearer " + api_key).c_str());
+            headers = curl_slist_append(headers, "Content-Type: application/json");
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
-        // Perform the request
-        event.thinking();
+            // Set the request body
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body_str.c_str());
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, request_body_str.length());
 
-        CURLcode res = curl_easy_perform(curl);
-        if (res == CURLE_OK) {
-            // Request successful, parse the response
-            nlohmann::json response_json = nlohmann::json::parse(response_body);
+            // Set the response callback
+            std::string response_body;
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_body);
 
-            std::string image_url;
-            if (response_json.contains("data") && response_json["data"].is_array()) {
-                for (const auto& element : response_json["data"]) {
-                    if (element.contains("url")) {
-                        image_url = element["url"].get<std::string>();
-                        break;
+            // Disable SSL certificate verification
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+
+            // Perform the request
+            CURLcode res = curl_easy_perform(curl);
+            if (res == CURLE_OK) {
+                // Request successful, parse the response
+                nlohmann::json response_json = nlohmann::json::parse(response_body);
+
+                // Print the response JSON to the console
+                std::cout << "API Response: " << response_json.dump(4) << std::endl;
+
+                std::string image_url;
+                if (response_json.contains("data") && response_json["data"].is_array()) {
+                    for (const auto& element : response_json["data"]) {
+                        if (element.contains("url")) {
+                            image_url = element["url"].get<std::string>();
+                            break;
+                        }
                     }
                 }
-            }
 
-            if (!image_url.empty()) {
-                // Download the image
-                CURL* download_curl = curl_easy_init();
-                if (download_curl) {
-                    std::string image_data;
-                    curl_easy_setopt(download_curl, CURLOPT_URL, image_url.c_str());
-                    curl_easy_setopt(download_curl, CURLOPT_WRITEFUNCTION, writeCallback);
-                    curl_easy_setopt(download_curl, CURLOPT_WRITEDATA, &image_data);
-                    curl_easy_setopt(download_curl, CURLOPT_SSL_VERIFYPEER, 0L);
-                    curl_easy_setopt(download_curl, CURLOPT_SSL_VERIFYHOST, 0L);
+                if (!image_url.empty()) {
+                    // Download the image
+                    CURL* download_curl = curl_easy_init();
+                    if (download_curl) {
+                        std::string image_data;
+                        curl_easy_setopt(download_curl, CURLOPT_URL, image_url.c_str());
+                        curl_easy_setopt(download_curl, CURLOPT_WRITEFUNCTION, writeCallback);
+                        curl_easy_setopt(download_curl, CURLOPT_WRITEDATA, &image_data);
+                        curl_easy_setopt(download_curl, CURLOPT_SSL_VERIFYPEER, 0L);
+                        curl_easy_setopt(download_curl, CURLOPT_SSL_VERIFYHOST, 0L);
 
-                    CURLcode download_res = curl_easy_perform(download_curl);
-                    if (download_res == CURLE_OK) {
-                        // Image downloaded successfully, reupload it to Discord
-                        dpp::message msg;
-                        msg.add_file("generated_image.png", image_data);
-                        msg.content = "Prompt: \"" + prompt + "\"";
-                        event.edit_original_response(msg);
+                        CURLcode download_res = curl_easy_perform(download_curl);
+                        if (download_res == CURLE_OK) {
+                            // Image downloaded successfully, reupload it to Discord
+                            dpp::message msg;
+                            msg.add_file("generated_image.png", image_data);
+                            msg.content = "Prompt: \"" + prompt + "\"\nModel: " + model + (use_hd ? " (HD)" : "") + "\nStyle: " + style;
+                            event.edit_original_response(msg);
+                        }
+                        else {
+                            std::cerr << "Error downloading image: " << curl_easy_strerror(download_res) << std::endl;
+                            event.edit_original_response(dpp::message("An error occurred while downloading the generated image."));
+                        }
+
+                        curl_easy_cleanup(download_curl);
                     }
-                    else {
-                        std::cerr << "Error downloading image: " << curl_easy_strerror(download_res) << std::endl;
-                        event.edit_original_response(dpp::message("An error occurred while downloading the generated image."));
-                    }
-
-                    curl_easy_cleanup(download_curl);
+                }
+                else {
+                    std::cerr << "No image URL found in the response." << std::endl;
+                    event.edit_original_response(dpp::message("Sorry, I couldn't generate an image for your prompt."));
                 }
             }
             else {
-                std::cerr << "No image URL found in the response." << std::endl;
-                event.edit_original_response(dpp::message("Sorry, I couldn't generate an image for your prompt."));
+                std::cerr << "Error in libcurl request: " << curl_easy_strerror(res) << std::endl;
+                event.edit_original_response(dpp::message("An error occurred while processing your request."));
             }
-        }
-        else {
-            std::cerr << "Error in libcurl request: " << curl_easy_strerror(res) << std::endl;
-            event.edit_original_response(dpp::message("An error occurred while processing your request."));
-        }
 
-        // Clean up
-        curl_slist_free_all(headers);
-        curl_easy_cleanup(curl);
-    }
+            // Clean up
+            curl_slist_free_all(headers);
+            curl_easy_cleanup(curl);
+        }
+        });
+    image_thread.detach(); // Detach the thread to run independently
     }
 }
 
