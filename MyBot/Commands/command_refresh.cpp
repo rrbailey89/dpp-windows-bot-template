@@ -1,7 +1,7 @@
 #include "command_refresh.h"
 #include "DatabaseManager.h"
 #include "CleanCommand.h"
-#include "FactsCommand.h"
+#include "FactsCommandHandler.h"
 #include "grantroles.h"
 #include "UpdateRaidTime.h"
 #include "rules_command.h"
@@ -19,7 +19,8 @@ void refresh_guild_commands(dpp::cluster& bot, dpp::snowflake guild_id) {
 	// Define a list of all possible guild-specific commands
 	std::vector<dpp::slashcommand> all_guild_commands = {
 		commands::register_clean_command(bot),
-		commands::register_facts_command(bot),
+		//commands::register_facts_command(bot),
+        FactsCommandHandler(bot).register_facts_command(),
 		commands::register_grantroles_command(bot),
 		commands::register_updateraidtime_command(bot),
 		commands::register_rules_command(bot),

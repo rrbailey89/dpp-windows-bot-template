@@ -45,8 +45,7 @@ namespace commands {
                     // Send a direct message to the user
                     bot.direct_message_create(user->id, dpp::message(event.added.user_id, "Welcome " + guild_name + "! Please read the rules in the rules channel and click the button to agree to the rules and assign yourself a role. Only after this will you be able to use text and voice channels."));
 
-                    int64_t join_timestamp = event.added.joined_at;
-
+                    int64_t join_timestamp = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
                     DatabaseManager::getInstance().storeUserJoinDate(event.added.guild_id, user->id, join_timestamp);
 
                     dpp::embed welcome_embed;
@@ -98,7 +97,7 @@ namespace commands {
             // Check if a channel has been set for the guild in the guild_member_join_channels table
             dpp::snowflake join_channel_id = DatabaseManager::getInstance().getMemberJoinChannelForGuild(event.guild_id);
             if (join_channel_id != 0) {
-                std::string join_date = DatabaseManager::getInstance().getUserJoinDate(event.guild_id, event.removed.id);
+                int64_t join_timestamp = DatabaseManager::getInstance().getUserJoinTimestamp(event.guild_id, event.removed.id);
 
                 // Construct the avatar URL
                 std::string avatar_url = event.removed.get_avatar_url();
@@ -109,7 +108,7 @@ namespace commands {
 
                 leave_embed.set_description(
                     "User <@" + std::to_string(event.removed.id) + "> left the guild. " +
-                    "They joined the guild on <t:" + join_date + ":f>."
+                    "They joined the guild on <t:" + std::to_string(join_timestamp) + ":f>."
                 );
 
                 // Send the leave embed to the designated channel

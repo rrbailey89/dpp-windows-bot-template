@@ -48,9 +48,6 @@
     <ClCompile Include="Commands\CreateRolesButton.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Commands\FactsCommand.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Commands\FFLogsToXIVAnalysis.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -100,6 +97,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Commands\DatabaseManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Commands\FactsCommandHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -383,9 +383,6 @@
     <ClInclude Include="Headers\CreateRolesButton.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Headers\FactsCommand.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Headers\FFLogsToXIVAnalysis.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -441,6 +438,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Headers\DatabaseManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Headers\FactsCommandHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
