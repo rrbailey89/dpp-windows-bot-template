@@ -1,5 +1,6 @@
 #pragma once
 #include <dpp/dpp.h>
+#include "DatabaseManager.h"  // Add this line
 
 namespace commands {
     dpp::slashcommand register_user_information_command(dpp::cluster& bot);

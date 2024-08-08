@@ -44,7 +44,10 @@ namespace commands {
                     localtime_s(&tm_buf, &join_time);
                     std::strftime(join_buffer, 64, "%m/%d/%Y %I:%M:%S %p", &tm_buf);
 
-                    bot.guild_get(guild_id, [&bot, event, user, nickname, buffer, join_buffer, &guild_id, member, avatar_url](const dpp::confirmation_callback_t& guild_response) {
+                    // Get the total number of hugs received by the user
+                    int hug_count = DatabaseManager::getInstance().getUserHugCount(user.id);
+
+                    bot.guild_get(guild_id, [&bot, event, user, nickname, buffer, join_buffer, &guild_id, member, avatar_url, hug_count](const dpp::confirmation_callback_t& guild_response) {
                         if (!guild_response.is_error()) {
                             const dpp::guild& guild = std::get<dpp::guild>(guild_response.value);
                             std::stringstream role_names;
@@ -64,6 +67,7 @@ namespace commands {
                                 .add_field("Account Created On", buffer, true)
                                 .add_field("Joined Server On", join_buffer, true)
                                 .add_field("Roles", role_names_str.empty() ? "None" : role_names_str, true)
+                                .add_field("Total Hugs Received", std::to_string(hug_count), true)  // Add this line
                                 .set_image(avatar_url)
                                 .set_color(0x00ff00);
 

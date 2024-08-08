@@ -17,4 +17,6 @@ private:
     void on_message_delete_bulk(const dpp::message_delete_bulk_t& event);
     void on_message_update(const dpp::message_update_t& event);
     void on_slashcommand(const dpp::slashcommand_t& event);
+    void handle_leveling(const dpp::message_create_t& event);
+
 };

@@ -195,12 +195,14 @@
     <ClCompile Include="Commands\button_click_handler.cpp" />
     <ClCompile Include="Commands\CleanCommand.cpp" />
     <ClCompile Include="Commands\command_refresh.cpp" />
+    <ClCompile Include="Commands\ContentModerationCommand.cpp" />
     <ClCompile Include="Commands\CreateRolesButton.cpp" />
     <ClCompile Include="Commands\DatabaseManager.cpp" />
     <ClCompile Include="Commands\FactsCommandHandler.cpp" />
     <ClCompile Include="Commands\FFLogsToXIVAnalysis.cpp" />
     <ClCompile Include="Commands\FunCommand.cpp" />
     <ClCompile Include="Commands\GrantRoles.cpp" />
+    <ClCompile Include="Commands\LevelSystem.cpp" />
     <ClCompile Include="Commands\MemberJoinHandler.cpp" />
     <ClCompile Include="Commands\message_listener.cpp" />
     <ClCompile Include="Commands\ModCommand.cpp" />
@@ -308,6 +310,7 @@
     <ClInclude Include="Headers\button_click_handler.h" />
     <ClInclude Include="Headers\CleanCommand.h" />
     <ClInclude Include="Headers\command_refresh.h" />
+    <ClInclude Include="Headers\ContentModerationCommand.h" />
     <ClInclude Include="Headers\CreateRolesButton.h" />
     <ClInclude Include="Headers\DatabaseManager.h" />
     <ClInclude Include="Headers\FactsCommandHandler.h" />
@@ -315,6 +318,7 @@
     <ClInclude Include="Headers\FunCommand.h" />
     <ClInclude Include="Headers\grantroles.h" />
     <ClInclude Include="Headers\GuildCommands.h" />
+    <ClInclude Include="Headers\LevelSystem.h" />
     <ClInclude Include="Headers\MemberJoinHandler.h" />
     <ClInclude Include="Headers\message_listener.h" />
     <ClInclude Include="Headers\ModCommand.h" />
