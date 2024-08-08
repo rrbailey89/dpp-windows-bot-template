@@ -49,7 +49,18 @@ public:
     std::string unescapeJson(const std::string& json);
     std::string getConversationThreadIdForUser(dpp::snowflake user_id);
     void storeConversationThreadIdForUser(dpp::snowflake user_id, const std::string& thread_id);
-
+    void setReactionTrackingChannel(dpp::snowflake guild_id, dpp::snowflake channel_id);
+    dpp::snowflake getReactionTrackingChannel(dpp::snowflake guild_id);
+    void incrementUserMessageCount(dpp::snowflake guild_id, dpp::snowflake user_id);
+    int getUserMessageCount(dpp::snowflake guild_id, dpp::snowflake user_id);
+    void setUserLevel(dpp::snowflake guild_id, dpp::snowflake user_id, int level);
+    int getUserLevel(dpp::snowflake guild_id, dpp::snowflake user_id);
+    std::optional<dpp::snowflake> getLevelUpChannelId(dpp::snowflake guild_id);
+    void setLevelUpChannelId(dpp::snowflake guild_id, dpp::snowflake channel_id);
+    int getTotalUserMessageCount(dpp::snowflake guild_id, dpp::snowflake user_id);
+    void addBlockedContent(dpp::snowflake guild_id, const std::string& pattern, bool is_regex);
+    bool removeBlockedContent(dpp::snowflake guild_id, const std::string& pattern);
+    std::vector<std::pair<std::string, bool>> getBlockedContent(dpp::snowflake guild_id);
 
 private:
     DatabaseManager(const std::string& url);

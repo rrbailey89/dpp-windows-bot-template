@@ -29,6 +29,9 @@
 #include "AskCommand.h"
 #include "DatabaseManager.h"
 #include "FactsCommandHandler.h"
+#include "ReactionLogger.h"
+#include "LevelSystem.h"
+#include "ContentModerationCommand.h"
 
 /* Be sure to place your token in the line below.
  * Follow steps here to get a token:
@@ -87,6 +90,7 @@ int main()
 			commands.push_back(commands::register_user_information_command(bot));
 			commands.push_back(commands::register_blameserena_command(bot));
 			commands.push_back(commands::register_utility_command(bot));
+			commands.push_back(commands::register_content_moderation_command(bot));
 
 			// Register all global commands in bulk
 			bot.global_bulk_command_create(commands);
@@ -238,6 +242,15 @@ int main()
 		}
 		else if (event.command.get_command_name() == "ask") {
 			commands::handle_ask_command(event, bot);
+		}
+		else if (event.command.get_command_name() == "setreactionchannel") {
+			commands::handle_setreactionchannel_command(event, bot);
+		}
+		else if (event.command.get_command_name() == "setlevelupchannel") {
+			commands::handle_setlevelupchannel_command(event, bot);
+		}
+		else if (event.command.get_command_name() == "moderation") {
+			commands::handle_content_moderation_command(event, bot);
 		}
 		co_return;
 		});

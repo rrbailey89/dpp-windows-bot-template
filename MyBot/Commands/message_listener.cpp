@@ -9,10 +9,18 @@
 #include <chrono>
 #include <dpp/dpp.h>
 #include "FunCommand.h"
+#include <cmath>
+#include <optional>
+#include "ContentModerationCommand.h"
+
 
 unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 std::default_random_engine generator(seed);
 std::uniform_int_distribution<int> distribution(1, 100);
+
+int calculate_required_messages(int level) {
+    return static_cast<int>(10 * std::pow(1.5, level - 1));
+}
 
 message_listener::message_listener(dpp::cluster& bot, dpp::cache<dpp::message>& message_cache)
     : bot(bot), message_cache(message_cache) {}
@@ -99,6 +107,8 @@ void message_listener::on_message_create(const dpp::message_create_t& event) {
     
     commands::handle_message(event, bot);
 
+    handle_leveling(event);
+
     std::vector<std::string> keywords = { "pierce brosnan", "yoshi p", "yoship", "yoshi-p", "japan", "raid", "shion", "saskia", "erik", "amia", "opal", "lief", "dyna", "bot", "cat", "broken", "lol", "lmao", "a8s" };
     std::string message_content = event.msg.content;
     std::transform(message_content.begin(), message_content.end(), message_content.begin(), ::tolower);
@@ -148,6 +158,15 @@ void message_listener::on_message_create(const dpp::message_create_t& event) {
         if (random_value <= 15) {
             std::cout << "Triggering OpenAI API for message: " << message_content << std::endl;
             get_emoji_from_openai(message_content, event.msg);
+        }
+    }
+    if (event.msg.guild_id != 0) {  // Check if the message is from a guild
+        if (!commands::is_content_allowed(event.msg.content, event.msg.guild_id)) {
+            bot.message_delete(event.msg.id, event.msg.channel_id);
+            dpp::message response("Your message was removed because it contains blocked content.");
+            response.set_flags(dpp::m_ephemeral);
+            bot.direct_message_create(event.msg.author.id, response);
+            return;  // Exit early as the message was deleted
         }
     }
 }
@@ -283,7 +302,12 @@ void message_listener::on_message_update(const dpp::message_update_t& event) {
 
 void message_listener::on_slashcommand(const dpp::slashcommand_t& event) {
     if (event.command.get_command_name() == "setdeletechannel") {
-        // Fetch the user's permissions in the guild
+        // Fetch the user's 
+        // 
+        // 
+        // 
+        // 
+        // s in the guild
         if (event.command.get_resolved_permission(event.command.usr.id).can(dpp::p_manage_guild)) {
 
             // Check if the user has the permission to manage the guild
@@ -298,6 +322,43 @@ void message_listener::on_slashcommand(const dpp::slashcommand_t& event) {
         }
         else {
             event.reply("You do not have permission to use this command.");
+        }
+    }
+}
+
+void message_listener::handle_leveling(const dpp::message_create_t& event) {
+    if (event.msg.author.is_bot()) return; // Ignore bot messages
+
+    dpp::snowflake guild_id = event.msg.guild_id;
+    dpp::snowflake user_id = event.msg.author.id;
+
+    DatabaseManager::getInstance().incrementUserMessageCount(guild_id, user_id);
+    int total_messages = DatabaseManager::getInstance().getTotalUserMessageCount(guild_id, user_id);
+    int current_level = DatabaseManager::getInstance().getUserLevel(guild_id, user_id);
+
+    if (current_level == 0) {
+        // First message, set to level 1
+        current_level = 1;
+        DatabaseManager::getInstance().setUserLevel(guild_id, user_id, current_level);
+
+        auto level_up_channel_id = DatabaseManager::getInstance().getLevelUpChannelId(guild_id);
+        if (level_up_channel_id.has_value()) {
+            std::string level_up_message = "<@" + std::to_string(user_id) + "> has started their journey at level 1!";
+            bot.message_create(dpp::message(level_up_channel_id.value(), level_up_message));
+        }
+    }
+
+    int required_messages = calculate_required_messages(current_level + 1);
+
+    if (total_messages >= required_messages) {
+        // Level up!
+        int new_level = current_level + 1;
+        DatabaseManager::getInstance().setUserLevel(guild_id, user_id, new_level);
+
+        auto level_up_channel_id = DatabaseManager::getInstance().getLevelUpChannelId(guild_id);
+        if (level_up_channel_id.has_value()) {
+            std::string level_up_message = "<@" + std::to_string(user_id) + "> has reached level " + std::to_string(new_level) + "!";
+            bot.message_create(dpp::message(level_up_channel_id.value(), level_up_message));
         }
     }
 }

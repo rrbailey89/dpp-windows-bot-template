@@ -1,5 +1,6 @@
 #include "DatabaseManager.h"
 #include <iostream>
+#include <optional>
 
 const std::chrono::seconds DatabaseManager::COOLDOWN_DURATION(120);
 
@@ -1031,4 +1032,210 @@ void DatabaseManager::storeConversationThreadIdForUser(dpp::snowflake user_id, c
     catch (...) {
         std::cerr << "Unknown error occurred." << std::endl;
     }
+}
+
+void DatabaseManager::setReactionTrackingChannel(dpp::snowflake guild_id, dpp::snowflake channel_id) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "INSERT INTO reaction_tracking_channels (guild_id, channel_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE channel_id = VALUES(channel_id);";
+        session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .bind(static_cast<uint64_t>(channel_id))
+            .execute();
+        std::cout << "Reaction tracking channel set successfully" << std::endl;
+    }
+    catch (const mysqlx::Error& err) {
+        std::cerr << "Database operation error: " << err.what() << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Standard exception: " << e.what() << std::endl;
+    }
+    catch (...) {
+        std::cerr << "Unknown error occurred." << std::endl;
+    }
+}
+
+dpp::snowflake DatabaseManager::getReactionTrackingChannel(dpp::snowflake guild_id) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "SELECT channel_id FROM reaction_tracking_channels WHERE guild_id = ? LIMIT 1;";
+        mysqlx::RowResult result = session.sql(sql).bind(static_cast<uint64_t>(guild_id)).execute();
+        if (result.count() > 0) {
+            mysqlx::Row row = result.fetchOne();
+            uint64_t channel_id_uint64 = row[0].get<uint64_t>();
+            return dpp::snowflake(channel_id_uint64);
+        }
+    }
+    catch (const mysqlx::Error& err) {
+        std::cerr << "Database operation error: " << err.what() << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Standard exception: " << e.what() << std::endl;
+    }
+    catch (...) {
+        std::cerr << "Unknown error occurred." << std::endl;
+    }
+    return 0;
+}
+
+void DatabaseManager::incrementUserMessageCount(dpp::snowflake guild_id, dpp::snowflake user_id) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "INSERT INTO user_messages (guild_id, user_id, message_count) VALUES (?, ?, 1) "
+            "ON DUPLICATE KEY UPDATE message_count = message_count + 1;";
+        session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .bind(static_cast<uint64_t>(user_id))
+            .execute();
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error incrementing message count: " << e.what() << std::endl;
+    }
+}
+
+int DatabaseManager::getUserMessageCount(dpp::snowflake guild_id, dpp::snowflake user_id) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "SELECT message_count FROM user_messages WHERE guild_id = ? AND user_id = ?;";
+        auto result = session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .bind(static_cast<uint64_t>(user_id))
+            .execute();
+        auto row = result.fetchOne();
+        return row ? row[0].get<int>() : 0;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error getting message count: " << e.what() << std::endl;
+        return 0;
+    }
+}
+
+void DatabaseManager::setUserLevel(dpp::snowflake guild_id, dpp::snowflake user_id, int level) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "INSERT INTO user_levels (guild_id, user_id, level) VALUES (?, ?, ?) "
+            "ON DUPLICATE KEY UPDATE level = VALUES(level);";
+        session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .bind(static_cast<uint64_t>(user_id))
+            .bind(level)
+            .execute();
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error setting user level: " << e.what() << std::endl;
+    }
+}
+
+int DatabaseManager::getUserLevel(dpp::snowflake guild_id, dpp::snowflake user_id) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "SELECT level FROM user_levels WHERE guild_id = ? AND user_id = ?;";
+        auto result = session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .bind(static_cast<uint64_t>(user_id))
+            .execute();
+        auto row = result.fetchOne();
+        return row ? row[0].get<int>() : 0;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error getting user level: " << e.what() << std::endl;
+        return 0;
+    }
+}
+
+std::optional<dpp::snowflake> DatabaseManager::getLevelUpChannelId(dpp::snowflake guild_id) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "SELECT channel_id FROM level_up_channels WHERE guild_id = ?;";
+        auto result = session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .execute();
+        auto row = result.fetchOne();
+        return row ? std::optional<dpp::snowflake>(row[0].get<uint64_t>()) : std::nullopt;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error getting level up channel ID: " << e.what() << std::endl;
+        return std::nullopt;
+    }
+}
+
+void DatabaseManager::setLevelUpChannelId(dpp::snowflake guild_id, dpp::snowflake channel_id) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "INSERT INTO level_up_channels (guild_id, channel_id) VALUES (?, ?) "
+            "ON DUPLICATE KEY UPDATE channel_id = VALUES(channel_id);";
+        session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .bind(static_cast<uint64_t>(channel_id))
+            .execute();
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error setting level up channel ID: " << e.what() << std::endl;
+    }
+}
+
+int DatabaseManager::getTotalUserMessageCount(dpp::snowflake guild_id, dpp::snowflake user_id) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "SELECT message_count FROM user_messages WHERE guild_id = ? AND user_id = ?;";
+        auto result = session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .bind(static_cast<uint64_t>(user_id))
+            .execute();
+        auto row = result.fetchOne();
+        return row ? row[0].get<int>() : 0;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error getting total message count: " << e.what() << std::endl;
+        return 0;
+    }
+}
+
+void DatabaseManager::addBlockedContent(dpp::snowflake guild_id, const std::string& pattern, bool is_regex) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "INSERT INTO blocked_content (guild_id, pattern, is_regex) VALUES (?, ?, ?)";
+        session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .bind(pattern)
+            .bind(is_regex)
+            .execute();
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error adding blocked content: " << e.what() << std::endl;
+    }
+}
+
+bool DatabaseManager::removeBlockedContent(dpp::snowflake guild_id, const std::string& pattern) {
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "DELETE FROM blocked_content WHERE guild_id = ? AND pattern = ?";
+        auto result = session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .bind(pattern)
+            .execute();
+        return result.getAffectedItemsCount() > 0;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error removing blocked content: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+std::vector<std::pair<std::string, bool>> DatabaseManager::getBlockedContent(dpp::snowflake guild_id) {
+    std::vector<std::pair<std::string, bool>> blocked_content;
+    try {
+        mysqlx::Session& session = getSession();
+        std::string sql = "SELECT pattern, is_regex FROM blocked_content WHERE guild_id = ?";
+        auto result = session.sql(sql)
+            .bind(static_cast<uint64_t>(guild_id))
+            .execute();
+        for (const auto& row : result.fetchAll()) {
+            blocked_content.emplace_back(row[0].get<std::string>(), row[1].get<bool>());
+        }
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error fetching blocked content: " << e.what() << std::endl;
+    }
+    return blocked_content;
 }

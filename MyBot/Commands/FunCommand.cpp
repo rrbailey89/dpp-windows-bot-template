@@ -2,8 +2,14 @@
 #include <random>
 #include <unordered_map>
 #include "DatabaseManager.h"
+#include "curl/curl.h"
 
 namespace commands {
+
+    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+        ((std::string*)userp)->append((char*)contents, size * nmemb);
+        return size * nmemb;
+    }
 
     std::unordered_map<dpp::snowflake, int> game_instances;  // Map to store game instances
 
@@ -27,6 +33,9 @@ namespace commands {
                 .add_choice(dpp::command_option_choice("Paper", std::string("paper")))
                 .add_choice(dpp::command_option_choice("Scissors", std::string("scissors")))
             )
+        );
+        fun_command.add_option(
+            dpp::command_option(dpp::co_sub_command, "capy", "Get a random capybara picture")
         );
         return fun_command;
     }
@@ -146,7 +155,64 @@ namespace commands {
             }
         }
 
-            else if (sub_command == "rps") {
+        else if (sub_command == "capy") {
+            CURL* curl;
+            CURLcode res;
+            std::string readBuffer;
+
+            curl = curl_easy_init();
+            if (curl) {
+                // Disable SSL certificate verification
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+
+                curl_easy_setopt(curl, CURLOPT_URL, "https://api.capy.lol/v1/capybara?json=true");
+                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+                curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+
+                res = curl_easy_perform(curl);
+                curl_easy_cleanup(curl);
+
+                if (res == CURLE_OK) {
+                    try {
+                        nlohmann::json result = nlohmann::json::parse(readBuffer);
+                        if (result["success"].get<bool>()) {
+                            nlohmann::json data = result["data"];
+                            std::string image_url = data["url"].get<std::string>();
+                            std::string alt_text = data.value("alt", "");
+
+                            // Ensure the alt text is no longer than 256 characters
+                            if (alt_text.length() > 256) {
+                                alt_text = alt_text.substr(0, 253) + "...";
+                            }
+
+                            dpp::embed embed;
+                            embed.set_color(dpp::colors::blurple);
+                            embed.set_title(alt_text.empty() ? "Capybara!" : alt_text);
+                            embed.set_image(image_url);
+
+                            event.reply(
+                                dpp::message().add_embed(embed)
+                            );
+                        }
+                        else {
+                            event.reply("Failed to retrieve a capybara picture.");
+                        }
+                    }
+                    catch (const std::exception& e) {
+                        event.reply("Failed to parse the capybara API response.");
+                    }
+                }
+                else {
+                    event.reply("Failed to retrieve a capybara picture.");
+                }
+            }
+            else {
+                event.reply("Failed to initialize CURL.");
+            }
+            }
+
+        else if (sub_command == "rps") {
                 std::string player_choice_str = std::get<std::string>(event.get_parameter("choice"));
 
                 // Map player's choice to corresponding integer

@@ -14,12 +14,13 @@
 #include "message_listener.h"
 #include "ReminderCommand.h"
 #include "AskCommand.h"
+#include "ReactionLogger.h"
+#include "LevelSystem.h"
 
 void refresh_guild_commands(dpp::cluster& bot, dpp::snowflake guild_id) {
 	// Define a list of all possible guild-specific commands
 	std::vector<dpp::slashcommand> all_guild_commands = {
 		commands::register_clean_command(bot),
-		//commands::register_facts_command(bot),
         FactsCommandHandler(bot).register_facts_command(),
 		commands::register_grantroles_command(bot),
 		commands::register_updateraidtime_command(bot),
@@ -33,7 +34,9 @@ void refresh_guild_commands(dpp::cluster& bot, dpp::snowflake guild_id) {
         commands::register_fun_command(bot),
         commands::register_mod_command(bot),
         commands::register_reminder_command(bot),
-        commands::register_ask_command(bot)
+        commands::register_ask_command(bot),
+        commands::register_setreactionchannel_command(bot),
+        commands::register_setlevelupchannel_command(bot)
 		// Add other guild-specific commands as needed
 	};
 
